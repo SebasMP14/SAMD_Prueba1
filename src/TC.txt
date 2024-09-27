@@ -1,0 +1,60 @@
+#include <Arduino.h>
+
+#include "hardware_pins.h"
+
+#define P PB08 // Blink
+
+void setupTC4(); 
+void TC4_Handler();
+
+void setup() {
+
+  delay(4000);
+
+  Serial.begin(115200);
+  Serial.println("Iniciado.");
+
+  pinMode(P, OUTPUT);
+  
+  setupTC4();
+
+}
+
+void loop() {  
+
+}
+
+void setupTC4() {
+  // Habilitar el reloj para TC4
+  GCLK->PCHCTRL[TC4_GCLK_ID].reg = GCLK_PCHCTRL_GEN_GCLK0 | GCLK_PCHCTRL_CHEN; // Usa el generador de reloj 0
+  TC4->COUNT16.CTRLA.reg = TC_CTRLA_SWRST;  // Resetear TC4
+  while (TC4->COUNT16.SYNCBUSY.bit.SWRST);  // Esperar hasta que se complete el reseteo
+
+  // Configurar el prescaler y modo
+  TC4->COUNT16.CTRLA.reg |= TC_CTRLA_PRESCALER_DIV1024; // Prescaler de 1024
+  TC4->COUNT16.CTRLA.reg |= TC_CTRLA_MODE_COUNT16; // Modo de 16 bits
+
+  // Configurar la comparación para generar una interrupción
+  TC4->COUNT16.CC[0].reg = 46874; // CC_Value = clk_frec * Tiempo_deseado / prescaler
+  while (TC4->COUNT16.SYNCBUSY.bit.CC0);
+
+  // Habilitar interrupciones por comparación
+  TC4->COUNT16.INTENSET.reg = TC_INTENSET_MC0; // Habilitar interrupción de desbordamiento
+
+  // Habilitar el TC4
+  TC4->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+  while (TC4->COUNT16.SYNCBUSY.bit.ENABLE); // Esperar a que TC4 se habilite
+
+  // Habilitar la interrupción en el NVIC
+  NVIC_EnableIRQ(TC4_IRQn);
+}
+
+// Manejador de interrupciones de TC4
+void TC4_Handler() {
+  if (TC4->COUNT16.INTFLAG.bit.MC0) { // Si ocurre un overflow
+    TC4->COUNT16.INTFLAG.bit.MC0 = 1; // Limpiar la bandera de interrupción
+    digitalWrite(P, !digitalRead(P)); // Alternar el estado del LED
+    Serial.println("Interrupción.");
+  }
+
+}

@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"name": "MUA_Control_Placa_Pruebas",
+			"path": "../Platform_Projects/MUA_Control_Placa_Pruebas"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"hardware_pins": "cpp",
+			"wiring_private.h": "c",
+			"sercom1.h": "c",
+			"sam.h": "c"
+		}
+	}
+}
