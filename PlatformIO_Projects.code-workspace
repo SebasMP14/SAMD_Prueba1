@@ -13,7 +13,8 @@
 			"hardware_pins": "cpp",
 			"wiring_private.h": "c",
 			"sercom1.h": "c",
-			"sam.h": "c"
+			"sam.h": "c",
+			"qspi.h": "c"
 		}
 	}
 }
