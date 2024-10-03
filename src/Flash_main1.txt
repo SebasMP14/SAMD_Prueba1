@@ -1,0 +1,72 @@
+#include <Arduino.h>
+#include <Adafruit_SPIFlash.h>
+
+#include "hardware_pins.h"
+
+Adafruit_FlashTransport_QSPI flashTransport(QSPI_SCK, QSPI_CS, QSPI_D0,
+                                   QSPI_D1, QSPI_D2, QSPI_D3);
+Adafruit_SPIFlash Flash_QSPI(&flashTransport);
+
+#define P PB08
+
+void setup() {
+
+  delay(3000);
+
+  Serial.begin(115200);
+  Serial.println("Iniciado.");
+
+  pinMode(PB08, OUTPUT);
+
+  // Inicializar el flash QSPI
+  flashTransport.begin();
+  if (flashTransport.supportQuadMode()) {
+    Serial.println("Soporta QSPI");
+  } else {
+    Serial.println("No soporta QSPI");
+  }
+  
+  while (Flash_QSPI.begin() == false) {
+    Serial.println("Error al inicializar la memoria");
+    delay(1000);  // Detener si falla la inicialización
+  }
+  if (Flash_QSPI.isReady()) {
+    Serial.println("La mem flash Está lista");
+    Serial.print("ID JEDEC de la memoria flash: 0x");
+    Serial.println(Flash_QSPI.getJEDECID(), HEX);  // Mostrar el ID en formato hexadecimal
+  }
+
+  Serial.println("Memoria flash_QSPI inicializada correctamente");
+
+  uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};  // Datos de ejemplo
+  uint32_t address = 0x00;  // Dirección de la memoria para escribir (inicio)
+
+  // Escribir datos en la memoria
+  Flash_QSPI.eraseSector(address);  // Borrar antes de escribir
+  if (Flash_QSPI.writeBuffer(address, data, sizeof(data))) {
+    Serial.println("Datos escritos correctamente.");
+  } else {
+    Serial.println("Error al escribir en la memoria.");
+  }
+
+  // Leer los datos escritos para verificar
+  uint8_t read_data[sizeof(data)];
+  if (Flash_QSPI.readBuffer(address, read_data, sizeof(read_data))) {
+    Serial.print("Datos leídos: ");
+    for (uint8_t i = 0; i < sizeof(read_data); i++) {
+      Serial.print("0x");
+      Serial.print(read_data[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+  } else {
+    Serial.println("Error al leer de la memoria.");
+  }
+}
+
+void loop() {  
+  digitalWrite(PB08, LOW);
+  delay(1000);
+  digitalWrite(PB08, HIGH);
+  delay(1000);
+}
