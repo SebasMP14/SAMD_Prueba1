@@ -1,3 +1,14 @@
+/**
+ * tmp100_driver.h
+ * Funciones de configuración y lectura del sensor de temperatura TMP100 para la misión M.U.A. de FIUNA 
+ * -> GuaraníSat2 -> MUA_Control -> FIUNA -> LME
+ * 
+ * Made by:
+ * - Est. Sebas Monje <2024> (github)
+ * 
+ * TODO:
+ * - 
+ */
 #ifndef TMP100_DRIVER_H
 #define TMP100_DRIVER_H
 
