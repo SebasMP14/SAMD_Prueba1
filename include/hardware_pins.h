@@ -7,8 +7,8 @@
 #define HARDWARE_PINS_H
 
 /////// Sebas_MUA_Control_Dev
-#define SCL_Sensor      PIN_WIRE_SCL        // PA16
-#define SDA_Sensor      PIN_WIRE_SDA        // PA17
+#define SCL_Sensor      PIN_WIRE_SCL        // PA16 sercom3
+#define SDA_Sensor      PIN_WIRE_SDA        // PA17 sercom3
 #define PULSE_1         PIN_I2S_SCK         // PB16
 #define PULSE_2         PIN_I2S_MCK         // PB17
 #define SPI_CS_MAX      PIN_SPI_SS          // PA08
@@ -30,8 +30,8 @@
 #define QSPI_SCK        G4                  // PB10     Ruteado a SCK de la memoria flash
 #define UART_BOSS_rx    PIN_SERIAL1_RX      // PB30
 #define UART_BOSS_tx    PIN_SERIAL1_TX      // PB31
-#define UART_GPS_rx     PIN_WIRE1_SDA       // PA13
-#define UART_GPS_tx     PIN_WIRE1_SCL       // PA12
+#define UART_GPS_rx     PIN_WIRE1_SDA       // PA13 sercom4
+#define UART_GPS_tx     PIN_WIRE1_SCL       // PA12 sercom4
 #define USB_MUA_N       PIN_USB_DM          // PA24
 #define USB_MUA_P       PIN_USB_PM          // PA25
 

@@ -47,7 +47,7 @@ void read_all(void) {
   get_address(&new_write_address);
 
   #ifdef DEBUG_MODE
-  Serial.print("DEBUG (read_all): Leyendo los datos escritos: ");
+  Serial.println("DEBUG (read_all): Leyendo los datos escritos: ");
   #endif
   Serial.print("DEBUG (read_all): ");
   for (uint32_t address = 0x00; address < new_write_address; address++) {

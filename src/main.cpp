@@ -1,67 +1,81 @@
 /**
  * main.cpp
- * Este codigo es una prueba de la memoria FLASH
+ * Este codigo es una prueba del sensor de temperatura TMP100, protocolo I2C
  * -> GuaraníSat2 -> MUA_Control -> FIUNA -> LME
  * 
  * Made by:
  * - Sebas Monje <2024> (github)
- * - Lucas Cho
  * 
  * TODO:
- * 
  * 
  */
 
 #include <Arduino.h>
 
 #include "hardware_pins.h"
-#include "flash_driver.h"
+#include "tmp100_driver.h"
 
 #define DEBUG_MODE
 
 #define P PB08
 
+uint8_t status = 0;
+float temperature = 0.0;
+
 void setup() {
   delay(4000);
 
-  uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};  /* Datos de ejemplo de escritura */
-  bool flash_status = true;
-
-  #ifdef DEBUG_MODE
   Serial.begin(115200);
-  Serial.println("DEBUG (setup): Puerto serial iniciado.");
-  #endif
 
-  pinMode(PB08, OUTPUT);
-
-  /* Inicializar el flash QSPI */
-  /* TODO: error handling */
-  flash_status = start_flash();
-  if ( flash_status == true ) {
+  // Configuración del TMP100
+  if ( !start_tmp100() ) {
     #ifdef DEBUG_MODE
-    Serial.println("Comunicar al OBC que el flash no conecta.");
+    Serial.println("Inicialización de TMP100 fallida");
     #endif
-    flash_status = true;
   }
 
-  flash_status = write_mem((uint8_t *)&data, sizeof(data));
-  if ( flash_status == true ) {
-    #ifdef DEBUG_MODE
-    Serial.println("Fallo en la escritura.");
-    #endif
-    flash_status = true;
-  }
-
-  read_all();
-
-  // erase_all();
-
-  Serial.println("FIN del proceso...");
+  
+  Serial.println("Setup finalizado...");
 }
 
 void loop() {  
   digitalWrite(PB08, LOW);
   delay(1000);
   digitalWrite(PB08, HIGH);
-  delay(1000);
+  temperature = read_tmp100();
+  if (isnan(temperature)) {
+    #ifdef DEBUG_MODE
+    Serial.println("Error al leer la temperatura.");
+    #endif
+  } else {
+    Serial.print("TMP: ");
+    Serial.print(temperature);
+    Serial.println(" ºC");
+  }
+
+  delay(1000);  // Leer cada segundo
 }
+
+
+
+/* NOTAS: Potenciometro digital I2C
+#define MCP4561 0b00101110
+ escribirPotenciometro(128);
+int escribirPotenciometro(uint16_t valor)
+{
+  if(valor>256) {valor=256;}
+  Wire.beginTransmission(int(MCP4561)); //Dirección del MCP4561
+  byte DH = valor/256;
+  byte D1 = 0b00000000 or DH;
+  byte D2 = byte(valor);
+  Serial.println(D1,BIN);
+  Serial.println(D2,BIN);
+  Wire.write(D1);
+  Wire.write(D2);
+  Wire.endTransmission();
+  return 0;
+}
+
+
+
+*/
