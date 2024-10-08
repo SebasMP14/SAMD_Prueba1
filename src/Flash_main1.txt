@@ -11,7 +11,6 @@ void setup() {
   delay(4000);
 
   uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};  /* Datos de ejemplo de escritura */
-  bool flash_status = true;
 
   #ifdef DEBUG_MODE
   Serial.begin(115200);
@@ -20,20 +19,17 @@ void setup() {
 
   pinMode(PB08, OUTPUT);
 
-  flash_status = start_flash();
-  if ( flash_status == true ) {
+
+  if ( !start_flash() ) {
     #ifdef DEBUG_MODE
     Serial.println("Comunicar al OBC que el flash no conecta.");
     #endif
-    flash_status = true;
   }
 
-  flash_status = write_mem((uint8_t *)&data, sizeof(data));
-  if ( flash_status == true ) {
+  if ( !write_mem((uint8_t *)&data, sizeof(data)) ) {
     #ifdef DEBUG_MODE
     Serial.println("Fallo en la escritura.");
     #endif
-    flash_status = true;
   }
 
   read_all();

@@ -1,0 +1,45 @@
+#include <Arduino.h>
+
+#include "hardware_pins.h"
+#include "tmp100_driver.h"
+
+#define DEBUG_MODE
+
+#define P PB08
+
+uint8_t status = 0;
+float temperature = 0.0;
+
+void setup() {
+  delay(4000);
+
+  Serial.begin(115200);
+
+  // Configuración del TMP100
+  if ( !start_tmp100() ) {
+    #ifdef DEBUG_MODE
+    Serial.println("Inicialización de TMP100 fallida");
+    #endif
+  }
+
+  
+  Serial.println("Setup finalizado...");
+}
+
+void loop() {  
+  digitalWrite(PB08, LOW);
+  delay(1000);
+  digitalWrite(PB08, HIGH);
+  temperature = read_tmp100();
+  if (isnan(temperature)) {
+    #ifdef DEBUG_MODE
+    Serial.println("Error al leer la temperatura.");
+    #endif
+  } else {
+    Serial.print("TMP: ");
+    Serial.print(temperature);
+    Serial.println(" ºC");
+  }
+
+  delay(1000);  // Leer cada segundo
+}

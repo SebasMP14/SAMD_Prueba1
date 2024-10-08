@@ -11,10 +11,10 @@
 #define SDA_Sensor      PIN_WIRE_SDA        // PA17 sercom3
 #define PULSE_1         PIN_I2S_SCK         // PB16
 #define PULSE_2         PIN_I2S_MCK         // PB17
-#define SPI_CS_MAX      PIN_SPI_SS          // PA08
-#define SPI_MOSI_MAX    PIN_SPI_MOSI        // PA04
-#define SPI_MISO_MAX    PIN_SPI_MISO        // PA06
-#define SPI_SCK_MAX     PIN_SPI_SCK         // PA05
+#define SPI_CS_MAX      PIN_SPI_SS          // PA07 sercom0_3
+#define SPI_MOSI_MAX    PIN_SPI_MOSI        // PA04 sercom0_0
+#define SPI_MISO_MAX    PIN_SPI_MISO        // PA06 sercom0_2
+#define SPI_SCK_MAX     PIN_SPI_SCK         // PA05 sercom0_1
 #define Interface_EN    D11                 // PB15
 
 // #define QSPI_D0         PIN_SPI1_SCK        // PA08     Revisar si se puede QSPI

@@ -70,7 +70,7 @@ void read_all(void) {
  * @fn      write_mem
  * @brief   escribe los datos en la primera posición disponible
  * @param   buffer, len: buffer con los datos a escribir y la longitud total de estos
- * @return  0 exitoso - 1 fallido
+ * @return  true exitoso - false fallido
  */
 bool write_mem(uint8_t *buffer, uint32_t len) {
   uint32_t len_bytes = 0;
@@ -88,7 +88,7 @@ bool write_mem(uint8_t *buffer, uint32_t len) {
   new_write_address += len_bytes;
   update_address(&new_write_address);
   
-  return false;
+  return true;
 }
 
 /************************************************************************************************************
@@ -96,7 +96,7 @@ bool write_mem(uint8_t *buffer, uint32_t len) {
  * @brief   Se actualiza la siguiente dirección disponible para escritura en la memoria (al inicio del último
  * sector)
  * @param   address: Dirección a alamacenar
- * @return  0 exitoso - 1 fallido
+ * @return  true exitoso - false fallido
  */
 bool update_address(uint32_t *address) {
   uint32_t len_bytes = 0;
@@ -129,14 +129,14 @@ bool update_address(uint32_t *address) {
   Serial.println(read_data, HEX);
   #endif
 
-  return false;
+  return true;
 }
 
 /************************************************************************************************************
  * @fn      get_address 
  * @brief   Retorna la ultima direccion donde existen datos
  * @param   write_address: Variable donde sera almacenada la direccion resultante
- * @return  0 sin error - 1 error en lectura
+ * @return  true sin error - false error en lectura
  */
 bool get_address( uint32_t *write_address ) {
   uint32_t len_bytes = 0;                     /* Bytes escritos/leidos por/de la memoria FLASH */
@@ -153,7 +153,7 @@ bool get_address( uint32_t *write_address ) {
     Serial.println("ERROR (get_address): Error en la lectura de la memoria FLASH.");
     #endif
     *write_address = 0x00000000;
-    return true;
+    return false;
   }
 
   /* Si la ultima direccion es NULL, se inicia desde la posicion 0 de la memoria FLASH */
@@ -165,15 +165,15 @@ bool get_address( uint32_t *write_address ) {
   }
 
   /* Retornar si no ocurren errores */
-  return false;
+  return true;
 }
 
 /************************************************************************************************************
  * @fn      start_flash
  * @brief   Inicia la memoria Flash
  * @param   NONE
- * @return  0 sin error
- *          1 error al iniciar FLASH
+ * @return  true sin error
+ *          false error al iniciar FLASH
  */
 bool start_flash(void)
 {
@@ -203,7 +203,7 @@ bool start_flash(void)
       }
       Serial.println("Memoria flash_QSPI inicializada correctamente");
       #endif
-      return false;
+      return true;
     }
 
     #ifdef DEBUG_MODE
@@ -217,5 +217,5 @@ bool start_flash(void)
   #ifdef DEBUG_MODE
   Serial.println("ERROR (start_flash): No se pudo iniciar la memoria Flash.");
   #endif
-  return true;
+  return false;
 }

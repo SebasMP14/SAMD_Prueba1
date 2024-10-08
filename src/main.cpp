@@ -1,6 +1,6 @@
 /**
  * main.cpp
- * Este codigo es una prueba del sensor de temperatura TMP100, protocolo I2C
+ * Este código es una prueba del control del MAX1932 por SPI
  * -> GuaraníSat2 -> MUA_Control -> FIUNA -> LME
  * 
  * Made by:
@@ -11,49 +11,66 @@
  */
 
 #include <Arduino.h>
+#include <SPI.h>
 
+#include "max1932_driver.h"
 #include "hardware_pins.h"
-#include "tmp100_driver.h"
 
 #define DEBUG_MODE
 
 #define P PB08
-
-uint8_t status = 0;
-float temperature = 0.0;
 
 void setup() {
   delay(4000);
 
   Serial.begin(115200);
 
-  // Configuración del TMP100
-  if ( !start_tmp100() ) {
-    #ifdef DEBUG_MODE
-    Serial.println("Inicialización de TMP100 fallida");
-    #endif
+  pinMode(SPI_CS_MAX, OUTPUT);
+  digitalWrite(SPI_CS_MAX, HIGH);
+
+  Serial.println("SPI begin");
+  start_max1932();
+
+  if ( !write_max_reg(0xFF) ) {
+    Serial.println("Comando max incorrecto");
   }
 
-  
+  delay(5000);
+
+  if ( !write_max_reg(0xC8) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
+  delay(5000);
+
+  if ( !write_max_reg(0x64) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
+  delay(5000);
+
+  if ( !write_max_reg(0x05) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
   Serial.println("Setup finalizado...");
 }
 
 void loop() {  
-  digitalWrite(PB08, LOW);
+  digitalWrite(P, LOW);
   delay(1000);
-  digitalWrite(PB08, HIGH);
-  temperature = read_tmp100();
-  if (isnan(temperature)) {
-    #ifdef DEBUG_MODE
-    Serial.println("Error al leer la temperatura.");
-    #endif
-  } else {
-    Serial.print("TMP: ");
-    Serial.print(temperature);
-    Serial.println(" ºC");
-  }
+  digitalWrite(P, HIGH);
+  delay(1000);
 
-  delay(1000);  // Leer cada segundo
+  // for (uint8_t i = 0; i < 256; i++) { 
+  //   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0)); // 2 MHz, LSBFirst, SPI_MODE
+  //   digitalWrite(SPI_CS_MAX, LOW);
+  //   SPI.transfer(i);
+  //   digitalWrite(SPI_CS_MAX, HIGH);
+  //   SPI.endTransaction();
+  //   delay(100);
+  // }
+
 }
 
 
