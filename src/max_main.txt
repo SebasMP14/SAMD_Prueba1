@@ -1,0 +1,74 @@
+/**
+ * main.cpp
+ * Este código es una prueba del control del MAX1932 por SPI
+ * -> GuaraníSat2 -> MUA_Control -> FIUNA -> LME
+ * 
+ * Made by:
+ * - Sebas Monje <2024> (github)
+ * 
+ * TODO:
+ * 
+ */
+
+#include <Arduino.h>
+#include <SPI.h>
+
+#include "max1932_driver.h"
+#include "hardware_pins.h"
+
+#define DEBUG_MODE
+
+#define P PB08
+
+void setup() {
+  delay(4000);
+
+  Serial.begin(115200);
+
+  pinMode(SPI_CS_MAX, OUTPUT);
+  digitalWrite(SPI_CS_MAX, HIGH);
+
+  Serial.println("SPI begin");
+  start_max1932();
+
+  if ( !write_max_reg(0xFF) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
+  delay(5000);
+
+  if ( !write_max_reg(0xC8) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
+  delay(5000);
+
+  if ( !write_max_reg(0x64) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
+  delay(5000);
+
+  if ( !write_max_reg(0x05) ) {
+    Serial.println("Comando max incorrecto");
+  }
+
+  Serial.println("Setup finalizado...");
+}
+
+void loop() {  
+  digitalWrite(P, LOW);
+  delay(1000);
+  digitalWrite(P, HIGH);
+  delay(1000);
+
+  // for (uint8_t i = 0; i < 256; i++) { 
+  //   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0)); // 2 MHz, LSBFirst, SPI_MODE
+  //   digitalWrite(SPI_CS_MAX, LOW);
+  //   SPI.transfer(i);
+  //   digitalWrite(SPI_CS_MAX, HIGH);
+  //   SPI.endTransaction();
+  //   delay(100);
+  // }
+
+}

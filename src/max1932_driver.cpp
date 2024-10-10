@@ -7,9 +7,10 @@
  * - Est. Sebas Monje <2024> (github)
  * 
  * TODO:
- * - Agregar en "write" función con respecto a la tensión deseada
+ * - Command de la función write debería ser la tensión de salida deseada
  */
 #include "max1932_driver.h"
+#include <Arduino.h>
 
 /************************************************************************************************************
  * @fn      start_max1932
@@ -18,8 +19,7 @@
  * @return  NONE
  */
 void start_max1932(void) {
-  SPI.begin();
-  SPI.setBitOrder(MSBFIRST);
+  SPI.begin();  
 }
 
 /************************************************************************************************************
@@ -30,20 +30,17 @@ void start_max1932(void) {
  * @return  true exitoso - false fallido
  */
 bool write_max_reg(uint8_t command) {
-  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0)); // 2 MHz, LSBFirst, SPI_MODE
   #ifdef DEBUG_MODE
   Serial.print("0x");
   Serial.println(command, HEX);
   #endif
 
+  SPI.beginTransaction(SPISettings(SPI_CLK_Speed, MSBFIRST, SPI_MODE0)); // 2 MHz máximo
   digitalWrite(SPI_CS_MAX, LOW);  // selección
-  delayMicroseconds(1);
-  SPI.transfer(command);     // Envio de comando
-  delayMicroseconds(1);
-  digitalWrite(SPI_CS_MAX, HIGH);
-  delayMicroseconds(1);
-
+  SPI.transfer(command);          // Envio de comando
   SPI.endTransaction();
+  delayMicroseconds(2);
+  digitalWrite(SPI_CS_MAX, HIGH);
 
   return true;
 }

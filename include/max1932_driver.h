@@ -7,7 +7,7 @@
  * - Est. Sebas Monje <2024> (github)
  * 
  * TODO:
- * - Agregar en "write" función con respecto a la tensión deseada
+ * - Command de la función write debería ser la tensión de salida deseada
  */
 #ifndef MAX1932_DRIVER_H
 #define MAX1932_DRIVER_H
@@ -16,6 +16,7 @@
 #include "hardware_pins.h"
 
 #define DEBUG_MODE
+#define SPI_CLK_Speed 1000000
 
 void start_max1932(void);
 bool write_max_reg(uint8_t command);
