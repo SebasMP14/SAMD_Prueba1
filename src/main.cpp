@@ -1,6 +1,7 @@
 /**
  * main.cpp
- * Este código es una prueba de la comunicación serial entre DOS SAMD51
+ * Este código es una prueba para la obtención de la curva reverse IV del SiPM
+ * Se integran el MAX1932, el ADS1115 y el TMP100
  * -> GuaraníSat2 -> MUA_Control -> FIUNA -> LME
  * 
  * Made by:
@@ -9,6 +10,163 @@
  * TODO:
  * 
  */
+
+#include <Arduino.h>
+// #include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_ADS1X15.h>
+
+#include "max1932_driver.h"
+#include "tmp100_driver.h"
+#include "hardware_pins.h"
+#include "calculos.h"
+
+#define DEBUG_MAIN
+#define MAX_ITER 10
+#define Elementos 100                     // Cantidad de muestras
+#define OverVoltage 3                     // Sobrevoltaje aplicado para la polarización de los SiPMs
+#define Switching_Time_MAX 4              // Microseconds
+
+#define ADS_ADDRESS 0x48 //48
+#define P PA20
+
+float inverseVoltage[Elementos];          // Tensión inversa aplicada al SiPM para obtener "inverseCurrent_I"
+uint8_t inverseVoltage_command[Elementos];
+// float inverseCurrent_V[Elementos];        // Tensión leída, correspondiente a la corriente inversa
+float inverseCurrent_I[Elementos];        // Corriente inversa, convertida de "inverseCurrent_V[]"
+
+Adafruit_ADS1115 ads;
+
+unsigned long time_ini;
+float temperature = 0.0;
+
+void obtain_Curve_inverseVI(float Temperature);
+
+void setup() {
+  delay(4000);
+
+  Serial.begin(115200);
+  Serial.println("Serial iniciado");
+
+  pinMode(SPI_CS_MAX, OUTPUT);
+  start_max1932();
+  for ( uint8_t iter_counter = 0; iter_counter <= MAX_ITER ; iter_counter ++) {
+    if ( start_tmp100() ) { // Configuración del TMP100, HACER EN VARIOS INTENTOS
+      #ifdef DEBUG_MAIN
+      Serial.println("DEBUG (setupCOUNT) -> Inicialización de TMP100 exitosa.");
+      #endif
+      break;
+    } else {
+      #ifdef DEBUG_MAIN
+      Serial.print("DEBUG (setupCOUNT) -> Inicialización de TMP100 fallida: ");
+      Serial.println(iter_counter);
+      #endif
+      delay(10);
+    }
+  }
+  if ( ads.begin() ) { // ADS_ADDRESS, &Wire1
+    ads.setDataRate(RATE_ADS1115_860SPS);
+    Serial.print("ADS iniciado, DataRate: ");
+    Serial.println(ads.getDataRate());
+  }
+
+  time_ini = millis();
+  Serial.println("Setup finalizado");
+}
+
+void loop() {
+
+  if ( millis() - time_ini >= 5000 ) {
+    Serial.println("Datos obtenidos: ");
+    Serial.print("Temperatura: ");
+
+    temperature = read_tmp100();
+    Serial.println(temperature, 4);
+    obtain_Curve_inverseVI(temperature);
+
+    time_ini = millis();
+    // init_butterworth();
+    
+    for ( uint8_t i = 0; i < Elementos; i++ ) {
+      // float Filtered_current = apply_butterworth(inverseVoltage[i]);
+      Serial.print("Voltage: ");
+      Serial.print(inverseVoltage[i], 6);
+      Serial.print(", Current: ");
+      Serial.println(inverseCurrent_I[i], 6);
+      // Serial.print(", Filtered Current: ");
+      // Serial.println(Filtered_current, 6);
+    }
+
+  }
+
+  // int16_t adc0;
+  // float volts0;
+  // temperature = read_tmp100();
+  // Serial.println(temperature, 4);
+  // adc0 = ads.readADC_SingleEnded(0);
+
+
+  // volts0 = ads.computeVolts(adc0);
+
+  // Serial.println("-----------------------------------------------------------");
+  // Serial.print("AIN0: "); Serial.print(adc0); Serial.print("  "); Serial.print(volts0); Serial.println("V");
+
+  delay(500);
+}
+
+/************************************************************************************************************
+ * @fn      obtain_Curve_inverseVI
+ * @brief   Se obtiene la curva I-V inversa del SiPM aplicando un filtro de butterworth a las lecturas del
+ *          ADC.
+ * @param   Temperature: obtenido del sensor TMP100 para la estimación teorica
+ * @return  ---todo
+ * TODO: - Se necesita un algoritmo para setear el Vbias correctamente
+ * fny <= fs/2
+ */
+void obtain_Curve_inverseVI(float Temperature) {
+  float Vbd_Teo = Vbd_teorical(Temperature);
+  float Vlimite_inferior = max(21.2, Vbd_Teo - 2); // 21.2 es el minimo valor a la salida del MAX
+  float Vlimite_superior = min(33.2, Vbd_Teo + 2); // 33.2 es el máximo valor a la salida del MAX
+  // float Vbarrido = Vlimite_inferior;
+  float paso = (Vlimite_superior - Vlimite_inferior) / Elementos;
+  unsigned long start_time, total_time;
+  #ifdef DEBUG_MAIN
+  Serial.print("Limites: ");
+  Serial.print(Vlimite_inferior);
+  Serial.print(", ");
+  Serial.println(Vlimite_superior);
+  #endif
+
+  for ( uint8_t i = 0; i < Elementos; i++ ) {
+    inverseVoltage[i] = Vlimite_inferior + i * paso;
+    inverseVoltage_command[i] = VMax_command(inverseVoltage[i]);
+  }
+
+  start_time = micros();
+  for ( uint8_t i = 0; i < Elementos; i++ ) {
+    write_max_reg(inverseVoltage_command[i]);
+    delayMicroseconds(Switching_Time_MAX); // 4 microseconds
+    // delay(2); // por la frecuencia de muestreo del ADS1115 que es 860 SPS (muestreo c/ 1.16ms)
+    // inverseVoltage[i] = Vbarrido;
+    // Aquí se debe validar la tensión seteada en la salida del max con el ADC
+    // inverseVoltage[i] = ads.computeVolts(ads.readADC_SingleEnded(0));
+    inverseCurrent_I[i] = ads.computeVolts(ads.readADC_SingleEnded(1)) / 1000; // Microamperios
+    
+    // Vbarrido += paso;
+    // Serial.print("Retardo de lectura: ");
+    // Serial.println(end_time - start_time);
+  }
+  total_time = micros() - start_time;
+  Serial.print("Tiempo promedio de muestreo [ms]: ");
+  float Ts = (float)total_time / (Elementos * 1000);
+  Serial.println(Ts);
+  
+  // float Vbias = obtain_Vbd(inverseCurrent_I, inverseVoltage, Elementos) + OverVoltage;
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/* Prueba de comunicación UART con RTC, el programa recibe los datos
 
 #include <Arduino.h>
 // #include <SPI.h>
@@ -125,8 +283,7 @@ void loop() {
   }
 }
 
-
-
+*/
 
 
 

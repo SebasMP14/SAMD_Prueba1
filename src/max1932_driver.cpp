@@ -30,17 +30,39 @@ void start_max1932(void) {
  * @return  true exitoso - false fallido
  */
 bool write_max_reg(uint8_t command) {
-  #ifdef DEBUG_MODE
-  Serial.print("0x");
+  #ifdef DEBUG_MAX
+  Serial.print("DEBUG (write_max_reg) -> 0x");
   Serial.println(command, HEX);
   #endif
 
   SPI.beginTransaction(SPISettings(SPI_CLK_Speed, MSBFIRST, SPI_MODE0)); // 2 MHz máximo
   digitalWrite(SPI_CS_MAX, LOW);  // selección
-  SPI.transfer(command);          // Envio de comando
-  SPI.endTransaction();
-  delayMicroseconds(2);
-  digitalWrite(SPI_CS_MAX, HIGH);
+  if ( SPI.transfer(command) == command ) {          // Envio de comando
+    delayMicroseconds(SPI_CS_delay);
+    digitalWrite(SPI_CS_MAX, HIGH);
+    SPI.endTransaction();
+    return true;
+  } else {
+    return false;
+  }
+}
 
-  return true;
+/************************************************************************************************************
+ * @fn      VMax_command
+ * @brief   Conversión de voltaje a commando bin para el MAX
+ * @param   valor: Es el voltaje objetivo en la salida del MAX
+ * @return  comando en binario
+ */
+uint8_t VMax_command(float valor) {
+  return static_cast<uint8_t>(255 + (254 * (21.2 - valor)) / 12);
+}
+
+/************************************************************************************************************
+ * @fn      VMax_command
+ * @brief   Conversión de voltaje a commando bin para el MAX
+ * @param   valor: Es el voltaje objetivo en la salida del MAX
+ * @return  comando en binario
+ */
+float HexMax_command(uint8_t valor) {
+  return 21.2 + (12 * (255 - valor)) / 254;
 }
