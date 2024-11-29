@@ -42,17 +42,46 @@ void init_butterworth(void) {
  * @param   
  * @return  
  */
-float apply_butterworth(float new_input) {
-  x[2] = x[1];          // Desplazar las muestras anteriores
-  x[1] = x[0];
-  x[0] = new_input;
+float* apply_butterworth(float *input, uint8_t Elementos) {
+  // Crear un nuevo arreglo para almacenar la salida filtrada
+  float *filtered_output = (float*)malloc(Elementos * sizeof(float));
+  if (filtered_output == NULL) {
+    Serial.println("Error: No se pudo asignar memoria para la salida del filtro.");
+    return NULL;
+  }
 
-  y[2] = y[1];
-  y[1] = y[0];
-  y[0] = b0 * x[0] + b1 * x[1] + b2 * x[2] - a1 * y[1] - a2 * y[2];  // Filtro de segundo orden
-  
-  return y[0];
+  // Reiniciar las variables del filtro
+  for (int i = 0; i < 3; i++) {
+    x[i] = 0.0;
+    y[i] = 0.0;
+  }
+
+  // Aplicar el filtro a cada elemento
+  for (uint8_t i = 0; i < Elementos; i++) {
+    x[2] = x[1];
+    x[1] = x[0];
+    x[0] = input[i];
+
+    y[2] = y[1];
+    y[1] = y[0];
+    y[0] = b0 * x[0] + b1 * x[1] + b2 * x[2] - a1 * y[1] - a2 * y[2];
+
+    filtered_output[i] = y[0];
+  }
+
+  return filtered_output;
 }
+// float apply_butterworth(float new_input) {
+//   x[2] = x[1];          // Desplazar las muestras anteriores
+//   x[1] = x[0];
+//   x[0] = new_input;
+
+//   y[2] = y[1];
+//   y[1] = y[0];
+//   y[0] = b0 * x[0] + b1 * x[1] + b2 * x[2] - a1 * y[1] - a2 * y[2];  // Filtro de segundo orden
+  
+//   return y[0];
+// }
 
 /************************************************************************************************************
  * @fn      obtain_Vbias
@@ -66,21 +95,46 @@ float obtain_Vbd(float *inverseCurrent_I, float *inverseVoltage, uint8_t Element
   float derivative[Elementos];
   float inverseDerivative[Elementos];
   float BreakdownVoltage = inverseVoltage[0];
-  int indexPeak = 0;
+  int indexPeak = -1;
 
   for ( uint8_t i = 0; i < Elementos; i++ ) {            // Logaritmo natural de 
-    logarithmicCurrent[i] = logf(inverseCurrent_I[i]);
+    if ( inverseCurrent_I[i] > 0.0f ) {
+      logarithmicCurrent[i] = logf(inverseCurrent_I[i]);
+    } else {
+      logarithmicCurrent[i] = NAN;
+    }
   }
 
-  for ( uint8_t i = 1; i < Elementos - 1; i++ ) {
-    derivative[i] = (logarithmicCurrent[i+1] - logarithmicCurrent[i-1]) / 
-                    (inverseVoltage[i+1] - inverseVoltage[i-1]);
-    inverseDerivative[i] = 1.0 / derivative[i];
+  derivative[0] = (logarithmicCurrent[1] - logarithmicCurrent[0]) / (inverseVoltage[1] - inverseVoltage[0]);
+  derivative[Elementos - 1] = (logarithmicCurrent[Elementos - 1] - logarithmicCurrent[Elementos - 2]) /
+                                  (inverseVoltage[Elementos - 1] - inverseVoltage[Elementos - 2]);
 
-    if ( inverseDerivative[i] > BreakdownVoltage ) {
-      BreakdownVoltage = inverseDerivative[i];
+  for ( uint8_t i = 1; i < Elementos - 1; i++ ) {
+    float deltaVoltage = inverseVoltage[i + 1] - inverseVoltage[i - 1];
+    if (deltaVoltage != 0.0f && isfinite(logarithmicCurrent[i + 1]) && isfinite(logarithmicCurrent[i - 1])) {
+      derivative[i] = (logarithmicCurrent[i + 1] - logarithmicCurrent[i - 1]) / deltaVoltage;
+    } else {
+      derivative[i] = NAN; // Asignar NAN si no es válida
+    }
+    if (isfinite(derivative[i]) && derivative[i] > 0.0f) {
+      inverseDerivative[i] = 1.0f / derivative[i];
+    } else {
+      inverseDerivative[i] = NAN; // Manejar casos no válidos
+    }
+  }
+
+  float maxInverseDerivative = -FLT_MAX;
+  for (uint8_t i = 1; i < Elementos - 1; i++) {
+    if (isfinite(inverseDerivative[i]) && inverseDerivative[i] > maxInverseDerivative) {
+      maxInverseDerivative = inverseDerivative[i];
       indexPeak = i;
     }
+  }
+
+  if (indexPeak != -1) {
+    BreakdownVoltage = inverseVoltage[indexPeak];
+  } else {
+    BreakdownVoltage = NAN; // Retornar NAN si no se encontró un pico válido
   }
 
   return inverseVoltage[indexPeak];

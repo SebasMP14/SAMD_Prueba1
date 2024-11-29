@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <math.h>
 #include <Adafruit_ADS1X15.h>
+#include <float.h>
 
 #include "max1932_driver.h"
 
@@ -20,7 +21,8 @@ extern float x[3];                         // Últimos 3 valores de entrada (cor
 extern float y[3];                         // Últimos 3 valores de salida (corriente filtrada)
 
 void init_butterworth(void);
-float apply_butterworth(float new_input);
+float* apply_butterworth(float *input, uint8_t Elementos);
+// float apply_butterworth(float new_input);
 float obtain_Vbd(float *inverseCurrent_I, float *inverseVoltage, uint8_t Elementos);
 float Vbd_teorical(float Temperature);
 

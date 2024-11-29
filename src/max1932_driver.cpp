@@ -19,6 +19,8 @@
  * @return  NONE
  */
 void start_max1932(void) {
+  pinMode(SPI_CS_MAX, OUTPUT);
+  digitalWrite(SPI_CS_MAX, HIGH);
   SPI.begin();  
 }
 
@@ -29,7 +31,7 @@ void start_max1932(void) {
  *                   en el max1932 y 1 el mayor valor, 0 apaga el convertidor
  * @return  true exitoso - false fallido
  */
-bool write_max_reg(uint8_t command) {
+void write_max_reg(uint8_t command) {
   #ifdef DEBUG_MAX
   Serial.print("DEBUG (write_max_reg) -> 0x");
   Serial.println(command, HEX);
@@ -37,14 +39,9 @@ bool write_max_reg(uint8_t command) {
 
   SPI.beginTransaction(SPISettings(SPI_CLK_Speed, MSBFIRST, SPI_MODE0)); // 2 MHz máximo
   digitalWrite(SPI_CS_MAX, LOW);  // selección
-  if ( SPI.transfer(command) == command ) {          // Envio de comando
-    delayMicroseconds(SPI_CS_delay);
-    digitalWrite(SPI_CS_MAX, HIGH);
-    SPI.endTransaction();
-    return true;
-  } else {
-    return false;
-  }
+  SPI.transfer(command);
+  digitalWrite(SPI_CS_MAX, HIGH);
+  SPI.endTransaction();
 }
 
 /************************************************************************************************************

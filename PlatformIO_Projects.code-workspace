@@ -15,7 +15,8 @@
 			"sercom1.h": "c",
 			"sam.h": "c",
 			"qspi.h": "c",
-			"ctgmath": "cpp"
+			"ctgmath": "cpp",
+			"cmath": "cpp"
 		}
 	}
 }
