@@ -47,7 +47,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Serial iniciado");
 
-  start_max1932();
+  // start_max1932();
   // for ( uint8_t iter_counter = 0; iter_counter <= MAX_ITER ; iter_counter ++) {
   //   if ( start_tmp100() ) { // Configuración del TMP100, HACER EN VARIOS INTENTOS
   //     #ifdef DEBUG_MAIN
@@ -70,10 +70,23 @@ void setup() {
 
   time_ini = millis();
   Serial.println("Setup finalizado");
+
+  analogWriteResolution(12);
+  pinMode(A0, OUTPUT);
+  Serial.println("i, VoltageT, VCorriente");
+  for (int i = 0; i < 4095; i+=4) {
+    Serial.print(i);
+    Serial.print(",");
+    Serial.print((3.3/4095)*i, 4);
+    Serial.print(",");
+    analogWrite(A0, i);
+    delay(4);
+    Serial.println(ads.computeVolts(ads.readADC_SingleEnded(0)), 6);
+  }
+  while ( 1 );
 }
 
 void loop() {
-
   if ( millis() - time_ini >= 5000 ) {
     Serial.println("Datos obtenidos: ");
     Serial.print("Temperatura: ");
@@ -84,7 +97,7 @@ void loop() {
 
     time_ini = millis();
     init_butterworth();
-    Serial.println("i, Voltage, Corriente, Voltage1, Corriente1");
+    Serial.println("i, Voltage, Corriente, Voltage*10.97, Corriente/11000");
     for ( uint8_t i = 0; i < Elementos; i++ ) {
       Serial.print(i);
       Serial.print(",");
