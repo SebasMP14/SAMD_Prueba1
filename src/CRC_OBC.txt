@@ -1,0 +1,114 @@
+int16 mk_CRC(unsigned int8 *data, unsigned int8 data_number)
+{
+   unsigned int32 crcReg = 0xFFFF;   
+   unsigned int32 calc = 0x8408;     
+   unsigned int8 w;            
+   int32 i;                    
+   int32 k;                     
+   unsigned int8 cal_data[NRZI3_DATA_SIZE];
+   
+   for(k = 0; k < data_number; k++)
+   {
+      cal_data[k] = data[k];   
+
+      for(i = 0; i < 8; i++)
+      {
+         w = (crcReg ^ cal_data[k]) & 0x0001;
+         crcReg = crcReg >> 1;
+
+         if(w == 1)
+         {
+            crcReg = crcReg ^ calc;
+         }
+
+         cal_data[k] = cal_data[k] >> 1;
+      }
+   }
+
+   crcReg = crcReg ^ 0xFFFF;   
+   return crcReg;
+}
+//_________________________<<
+
+
+// Y aqui un ejemplo de uso:
+
+
+//______Acknoledgement Success packet______________
+
+unsigned int8 Ack_pckt[32];
+
+Void SEND_SUCCESS_ACK()
+{
+//    Ground stationCall sign---------------[ 0-----5 ]
+      Ack_pckt[0] = 0x4a;     // J
+      Ack_pckt[1] = 0x47;     // G               
+      Ack_pckt[2] = 0x36;     // 6
+      Ack_pckt[3] = 0x59;     // Y
+      Ack_pckt[4] = 0x42;     // B
+      Ack_pckt[5] = 0x57;     // W
+      
+//    Dest SSID-----------------------------[ 6 ]
+      Ack_pckt[6] = 0x30;     //char 0
+
+//    Satellite Call Sign-------------------[ 7-----12 ]
+      Ack_pckt[7] = 0x4A;     // J
+      Ack_pckt[8] = 0x47;     // G
+      Ack_pckt[9] = 0x36;     // 6
+      Ack_pckt[10] = 0x59;    // Y
+      Ack_pckt[11] = 0x50;    // P
+      Ack_pckt[12] = 0x59;    // Y
+      
+//    Source SSID---------------------------[ 13 ]
+      Ack_pckt[13] = 0x30;    //char 0
+      
+//    Control-------------------------------[ 14 ]
+      Ack_pckt[14] = 0x3E;    //
+      
+//    PID-----------------------------------[ 15 ]
+      Ack_pckt[15] = 0xF0;    //
+      
+//    Header--------------------------------[ 16 ]
+      Ack_pckt[16] = 0xAA;    //
+
+//    SAT Header----------------------------[ 17]
+      Ack_pckt[17] = 0x03;    //   
+      
+//    Pckt sequence number higher byte------[ 18 ]
+      Ack_pckt[18] = CMD_pckt[1];    // 
+
+//    Pckt sequence number lower byte-------[ 19 ]
+      Ack_pckt[19] = CMD_pckt[2];    // 
+      
+//    CMD back------------------------------[ 20 - 28 ]
+      Ack_pckt[20] = CMD_pckt[3];
+      Ack_pckt[21] = CMD_pckt[4];
+      Ack_pckt[22] = CMD_pckt[5];
+      Ack_pckt[23] = CMD_pckt[6];
+      Ack_pckt[24] = CMD_pckt[7];
+      Ack_pckt[25] = CMD_pckt[8];
+      Ack_pckt[26] = CMD_pckt[9];
+      Ack_pckt[27] = CMD_pckt[10];
+      Ack_pckt[28] = CMD_pckt[11];
+
+//    Footer--------------------------------[ 29 ]
+      Ack_pckt[29] = 0xAA;    //
+      
+//    CRC Calculation-----------------------[ 30 - 31 ]
+      int16 outdata = mk_CRC(Ack_pckt, 30);
+      
+      Ack_pckt[30] = outdata ;
+      Ack_pckt[31] = outdata >> 8;
+      
+//    Send pckt------------------------------
+      OUTPUT_high(pin_d1);                                                       //TX mode
+      Delay_ms(2000);
+        for(int ih=0;ih<32;ih++)                                                 //buffer print
+        {
+           fputc(Ack_pckt[ih],TR_CP); 
+        }
+      Delay_ms(500);
+      OUTPUT_low(pin_d1);                                                        //RX mode
+      
+      return;     
+}

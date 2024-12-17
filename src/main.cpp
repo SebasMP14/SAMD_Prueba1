@@ -1,7 +1,8 @@
 /**
  * main.cpp
- * Este código es una prueba para la obtención de la curva reverse IV del SiPM
- * Se integran el MAX1932, el ADS1115 y el TMP100
+ * Este código es una prueba de la comunicación OBC - MUA
+ * Este sistema simula al OBC, mientras MUA prueba la FSM desarrollada
+ * 
  * -> GuaraníSat2 -> MUA_Control -> FIUNA -> LME
  * 
  * Made by:
@@ -11,202 +12,33 @@
  * 
  */
 
-#include <Arduino.h>
-// #include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_ADS1X15.h>
-
-#include "max1932_driver.h"
-#include "tmp100_driver.h"
-#include "hardware_pins.h"
-#include "calculos.h"
-
-#define DEBUG_MAIN
-#define MAX_ITER 10
-#define Elementos 100                     // Cantidad de muestras
-#define OverVoltage 3                     // Sobrevoltaje aplicado para la polarización de los SiPMs
-#define Switching_Time_MAX 4              // Microseconds
-
-#define ADS_ADDRESS 0x48 //48
-#define P PA20
-
-float inverseVoltage[Elementos];          // Tensión inversa aplicada al SiPM para obtener "inverseCurrent_I"
-uint8_t inverseVoltage_command[Elementos];
-float inverseCurrent_I[Elementos];        // Corriente inversa, convertida de "inverseCurrent_V[]"
-
-Adafruit_ADS1115 ads;
-
-unsigned long time_ini;
-float temperature = 0.0;
-
-void obtain_Curve_inverseVI(float Temperature);
-
-void setup() {
-  delay(4000);
-
-  Serial.begin(115200);
-  Serial.println("Serial iniciado");
-
-  // start_max1932();
-  // for ( uint8_t iter_counter = 0; iter_counter <= MAX_ITER ; iter_counter ++) {
-  //   if ( start_tmp100() ) { // Configuración del TMP100, HACER EN VARIOS INTENTOS
-  //     #ifdef DEBUG_MAIN
-  //     Serial.println("DEBUG (setupCOUNT) -> Inicialización de TMP100 exitosa.");
-  //     #endif
-  //     break;
-  //   } else {
-  //     #ifdef DEBUG_MAIN
-  //     Serial.print("DEBUG (setupCOUNT) -> Inicialización de TMP100 fallida: ");
-  //     Serial.println(iter_counter);
-  //     #endif
-  //     delay(10);
-  //   }
-  // }
-  if ( ads.begin() ) { // ADS_ADDRESS, &Wire1
-    ads.setDataRate(RATE_ADS1115_860SPS);
-    Serial.print("ADS iniciado, DataRate: ");
-    Serial.println(ads.getDataRate());
-  }
-
-  time_ini = millis();
-  Serial.println("Setup finalizado");
-
-  analogWriteResolution(12);
-  pinMode(A0, OUTPUT);
-  Serial.println("i, VoltageT, VCorriente");
-  for (int i = 0; i < 4095; i+=4) {
-    Serial.print(i);
-    Serial.print(",");
-    Serial.print((3.3/4095)*i, 4);
-    Serial.print(",");
-    analogWrite(A0, i);
-    delay(4);
-    Serial.println(ads.computeVolts(ads.readADC_SingleEnded(0)), 6);
-  }
-  while ( 1 );
-}
-
-void loop() {
-  if ( millis() - time_ini >= 5000 ) {
-    Serial.println("Datos obtenidos: ");
-    Serial.print("Temperatura: ");
-
-    temperature = 28.0;//read_tmp100();
-    // Serial.println(temperature, 4);
-    obtain_Curve_inverseVI(temperature);
-
-    time_ini = millis();
-    init_butterworth();
-    Serial.println("i, Voltage, Corriente, Voltage*10.97, Corriente/11000");
-    for ( uint8_t i = 0; i < Elementos; i++ ) {
-      Serial.print(i);
-      Serial.print(",");
-      Serial.print(inverseVoltage[i], 6);
-      Serial.print(",");
-      Serial.print(inverseCurrent_I[i], 6);
-      Serial.print(",");
-      Serial.print(inverseVoltage[i]*10.97, 6);
-      Serial.print(",");
-      Serial.println(inverseCurrent_I[i]/11000, 10);
-    }
-    Serial.print("Breakdown Voltage sin filtrar: ");
-    Serial.println((obtain_Vbd(inverseCurrent_I, inverseVoltage, Elementos) * 10.97) - 3.581, 6);
-    float* Filtered_voltage = apply_butterworth(inverseVoltage, Elementos);
-    float* Filtered_current = apply_butterworth(inverseCurrent_I, Elementos);
-    Serial.print("Voltage y Corriente Filtrados");
-    for ( uint8_t i = 0; i < Elementos; i++ ) {
-      Serial.println(Filtered_voltage[i], 6);
-      Serial.print(", ");
-      Serial.print(Filtered_current[i], 6);
-    }
-    Serial.print("Breakdown Voltage Filtrado: ");
-    Serial.println((obtain_Vbd(Filtered_current, Filtered_voltage, Elementos) * 10.97) - 3.581, 6);
-  }
-  
-  Serial.println("Siguiente toma de muestras");
-  delay(5000);
-}
-
-/************************************************************************************************************
- * @fn      obtain_Curve_inverseVI
- * @brief   Se obtiene la curva I-V inversa del SiPM aplicando un filtro de butterworth a las lecturas del
- *          ADC.
- * @param   Temperature: obtenido del sensor TMP100 para la estimación teorica
- * @return  ---todo
- * TODO: - Se necesita un algoritmo para setear el Vbias correctamente
- * fny <= fs/2
- */
-void obtain_Curve_inverseVI(float Temperature) {
-  // float Vbd_Teo = Vbd_teorical(Temperature);
-  float Vlimite_inferior = 26.2;//max(21.2, Vbd_Teo - 2); // 21.2 es el minimo valor a la salida del MAX
-  float Vlimite_superior = 30.2;//min(33.2, Vbd_Teo + 2); // 33.2 es el máximo valor a la salida del MAX
-  uint8_t Vlim_sup = VMax_command(Vlimite_inferior);
-  uint8_t Vlim_inf = VMax_command(Vlimite_superior);
-  uint8_t paso = (uint8_t)(Vlim_sup - Vlim_inf) / Elementos;
-  unsigned long start_time, total_time;
-
-  #ifdef DEBUG_MAIN
-  Serial.print("Limites: ");
-  Serial.print(Vlimite_inferior);
-  Serial.print(", ");
-  Serial.print(Vlimite_superior);
-  Serial.print(", ");
-  Serial.print(Vlim_inf, HEX);
-  Serial.print(", ");
-  Serial.print(Vlim_sup, HEX);
-  Serial.print(", paso: ");
-  Serial.print(paso);
-  #endif
-
-  for ( uint8_t i = 0; i < Elementos; i++ ) {
-    inverseVoltage_command[i] = Vlim_inf + i * paso;
-  }
-
-  start_time = micros();
-  for ( uint8_t i = 0; i < Elementos; i++ ) {
-    write_max_reg(inverseVoltage_command[i]);
-    // delayMicroseconds(Switching_Time_MAX); // 4 microseconds
-    delay(4); // por la frecuencia de muestreo del ADS1115 que es 860 SPS (muestreo c/ 1.16ms)
-    // Aquí se debe validar la tensión seteada en la salida del max con el ADC
-    inverseVoltage[i] = ads.computeVolts(ads.readADC_SingleEnded(0));
-    inverseCurrent_I[i] = ads.computeVolts(ads.readADC_SingleEnded(1)); // Microamperios
-    // Serial.print(i);
-    // Serial.print(",");
-    // Serial.print(inverseVoltage[i], 6);
-    // Serial.print(",");
-    // Serial.println(inverseCurrent_I[i], 6);
-
-    // delay(5000);
-  }
-  total_time = micros() - start_time;
-  Serial.print("Tiempo promedio de muestreo [ms]: ");
-  float Ts = (float)total_time / (Elementos * 1000);
-  Serial.println(Ts);
-  Fs = 1 / Ts;
-  Fc = 0.1 * Fs / 2;  
-}
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////
-/* Prueba de comunicación UART con RTC, el programa recibe los datos
+/* Prueba de comunicación UART con RTC, el programa recibe los datos */
 
 #include <Arduino.h>
-// #include <SPI.h>
 
-
-// #include "max1932_driver.h"
 #include "hardware_pins.h"
 #include "RTC_SAMD51.h"
 #include "DateTime.h"
 
 #define DEBUG_MAIN
 #define P PA20
+#define TRAMA_SIZE 44
 
 unsigned long date;
 bool state = false;
+bool state_recibir = false;
 uint32_t Time;
+uint8_t tramaCOUNT[TRAMA_SIZE] = {0x01, 0x01, 0x00};
+uint8_t tramaTRANSFER[TRAMA_SIZE] = {0x02, 0x01, 0x00};
+uint8_t ack_OBC_to_MUA[TRAMA_SIZE] = {0x04, 0x01, 0x00};
+uint8_t ack_MUA_to_OBC = 0x07; // ACK MUA to OBC
 
 RTC_SAMD51 rtc;
+
+uint16_t calcularCRC(const uint8_t *data, size_t length);
+uint16_t calcularCRC1(const uint8_t *data, size_t length);
+uint16_t mk_CRC(uint8_t *data, uint8_t data_number); // Para Probar del OBC
 
 void setup() {
   delay(4000);
@@ -243,48 +75,84 @@ void setup() {
   pinMode(P, OUTPUT);
 
   Time = millis();
+
+  // memset(&tramaCOUNT[3], 0x00, TRAMA_SIZE - 5);
+  // for (uint8_t j = 0; j < TRAMA_SIZE; j++) {
+  //   Serial.print(" 0x");
+  //   Serial.print(tramaCOUNT[j], HEX);
+  //   Serial.print(",");
+  // }
+  // Serial.println();
+  // memset(&tramaTRANSFER[3], 0x00, TRAMA_SIZE - 5);
+
+  uint16_t crc = calcularCRC(tramaCOUNT, TRAMA_SIZE - 2);
+  tramaCOUNT[TRAMA_SIZE - 2] = (crc >> 8) & 0xFF; // Byte alto
+  tramaCOUNT[TRAMA_SIZE - 1] = crc & 0xFF;        // Byte bajo
+  crc = calcularCRC(tramaTRANSFER, TRAMA_SIZE - 2);
+  tramaTRANSFER[TRAMA_SIZE - 2] = (crc >> 8) & 0xFF; // Byte alto
+  tramaTRANSFER[TRAMA_SIZE - 1] = crc & 0xFF;        // Byte bajo
   Serial.println("Setup Finalizado");
+
+  // uint8_t trama_prueba[30] = {0x4A, 0x47, 0x36, 0x59, 0x42, 0x57, 0x30, 0x4A, 0x47, 0x36,
+  //                            0x59, 0x50, 0x59, 0x30, 0x3E, 0xF0, 0xAA, 0x03, 0x12, 0x34, 
+  //                            0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78};
+  // uint16_t crc1 = calcularCRC(trama_prueba, 30);
+  // uint16_t crc2 = mk_CRC(trama_prueba, 30);
+
 }
 
 void loop() {
-  if ( Serial1.available() > 0 && !state ) {
-    uint8_t read1;
-    Serial1.readBytes(&read1, 1);
-    #ifdef DEBUG_MAIN
-    Serial.print("DEBUG (loop) -> Recibido Serial1: 0x");
-    Serial.println(read1, HEX);
-    #endif
-    if ( read1 == 0xAA ) {
-      state = true;
-      Serial1.write(0xA1); // COUNT_MODE
+  if ( millis() - Time > 5000 && !state ) { // Establecer COUNT MODE
+    uint8_t recibido[44];
+    uint16_t CRC;
+    
+    Serial1.write(tramaCOUNT, TRAMA_SIZE);
+    while ( Serial1.available() > 44 );
+    
+    Serial1.readBytes(recibido, TRAMA_SIZE);
+    Serial.print("Recibido de Serial1 ");
+    for (int i = 0; i < 44; i++) {
+      Serial.print("0x");
+      Serial.print(recibido[i], HEX);
+      Serial.print(" ");
     }
+    Serial.println();
+
+    CRC = calcularCRC(recibido, 42);
+    uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
+    if ( CRC == CRC_MUA && recibido[0] == ack_MUA_to_OBC) {
+      state = true;
+      Serial.println("Estado (COUNT) establecido exitosamente");
+    } else {
+      Serial.print("Estado fallido, (CRC, CRC_MUA): 0x");
+      Serial.print(CRC, HEX);
+      Serial.print(", 0x");
+      Serial.println(CRC_MUA, HEX);
+    }
+
+    Time = millis();
   }
   
-  if ( Serial1.available() > 0 && state) { 
-    uint8_t read1;
-    Serial1.readBytes(&read1, 1);
-    Serial.print(" 0x");
-    Serial.print(read1, HEX);
-  }
-  
-  if ( Serial2.available() > 0 ) {
+  if ( Serial2.available() > 0 ) { // Para transmitir unixtime
     uint8_t read2;
     Serial2.readBytes(&read2, 1);
+
     #ifdef DEBUG_MAIN
     Serial.print("DEBUG (loop) -> Recibido Serial2: 0x");
-    Serial.println(read2, HEX); 
+    Serial.println(read2, HEX);
     #endif
+    
     if ( read2 == 0xBB ) { // REQUEST_TIMESTAMP
       date = rtc.now().unixtime();
       Serial2.write((uint8_t *)&date, sizeof(date));
+      #ifdef DEBUG_MAIN
+      Serial.print("DEBUG (loop) -> timestamp enviado: ");
+      Serial.println(date);
+      #endif
     }
-    #ifdef DEBUG_MAIN
-    Serial.print("DEBUG (loop) -> timestamp enviado: ");
-    Serial.println(date);
-    #endif
   }
 
-  if ( millis() - Time > 5000 ) {
+  if ( millis() - Time > 10000 && !state ) {
     Serial.print("Date: ");
     Serial.print(rtc.now().year());
     Serial.print("-");
@@ -303,9 +171,315 @@ void loop() {
     Serial.println(rtc.now().unixtime(), HEX);
     Time = millis();
   }
+
+  if ( millis() - Time > 40000 && state ) { // Establecer TRANSFER MODE
+    Serial.println("Preparando para establecer TRANSFER MODE");
+    uint8_t recibido[44];
+    uint16_t CRC;
+    
+    Serial1.write(tramaTRANSFER, TRAMA_SIZE);
+    while ( Serial1.available() < 44 );
+    
+    Serial1.readBytes(recibido, TRAMA_SIZE);
+    Serial.print("Recibido de Serial1 (p transfer)");
+    for (int i = 0; i < 44; i++) {
+      Serial.print("0x");
+      Serial.print(recibido[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+
+    CRC = calcularCRC(recibido, 42);
+    uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
+    if ( CRC == CRC_MUA && recibido[0] == ack_MUA_to_OBC) {
+      state = true;
+      Serial.println("Estado (TRANSFER) establecido exitosamente");
+      state_recibir = true;
+    } else {
+      Serial.print("Estado fallido, (CRC, CRC_MUA): 0x");
+      Serial.print(CRC, HEX);
+      Serial.print(", 0x");
+      Serial.println(CRC_MUA, HEX);
+    }
+
+    Time = millis();
+  }
+
+  if ( state_recibir ) {
+    uint8_t recibido[44];
+    uint16_t CRC;
+    delay(200);
+    Serial.println("Esperando datos");
+    while ( Serial1.available() < TRAMA_SIZE );
+
+    Serial1.readBytes(recibido, TRAMA_SIZE);
+    Serial.print("Recibido de Serial1 (DATOS)");
+    for (int i = 0; i < 44; i++) {
+      Serial.print("0x");
+      Serial.print(recibido[i], HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
+
+    CRC = calcularCRC(recibido, 42);
+    uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
+    if ( CRC == CRC_MUA && recibido[0] == 0x03) {
+      state = true;
+      Serial.println("Datos recibidos correctamente");
+      
+    } else {
+      Serial.println("error en la recepción");
+    }
+  }
+  delay(1000);
 }
 
-*/
+uint16_t calcularCRC(const uint8_t *data, size_t length) {
+  uint32_t crc = 0xFFFF;                // Valor inicial
+  uint32_t pol = 0x8408;                // Polinomio
+  uint8_t temp_data[length];
+  uint8_t temp;
+
+  memcpy(temp_data, data, length);
+
+  for ( uint8_t i = 0; i < length; i++ ) {
+    for ( uint8_t j = 0; j < 8; j++ ) {
+      temp = (crc ^ temp_data[i]) & 0x0001;
+      crc = crc >> 1;
+      if ( temp == 1 ) {
+        crc = crc ^ pol;
+      }
+      temp_data[i] = temp_data[i] >> 1;
+    }
+  }
+  
+  return crc ^ 0xFFFF;
+}
+
+uint16_t calcularCRC1(const uint8_t *data, size_t length) {
+  uint16_t crc = 0xFFFF;                // Valor inicial
+  for (size_t i = 0; i < length; i++) {
+    crc ^= (data[i] << 8);
+    for (uint8_t bit = 0; bit < 8; bit++) {
+      if (crc & 0x8000) {
+        crc = (crc << 1) ^ 0x8408;      // Polinomio
+      } else {
+        crc <<= 1;
+      }
+    }
+  }
+  return crc ^ 0xFFFF;
+}
+
+// Función CRC basada en mk_CRC
+uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
+  uint32_t crcReg = 0xFFFF;
+  uint32_t calc = 0x8408;
+  uint8_t w;
+
+  // Crear una copia de los datos para trabajar con ellos sin modificar el original
+  uint8_t cal_data[data_number];
+  memcpy(cal_data, data, data_number);
+
+  for (int32_t k = 0; k < data_number; k++) {
+    for (int32_t i = 0; i < 8; i++) {
+      w = (crcReg ^ cal_data[k]) & 0x0001;
+      crcReg = crcReg >> 1;
+      if (w == 1) {
+        crcReg = crcReg ^ calc;
+      }
+      cal_data[k] = cal_data[k] >> 1; // Solo modificamos la copia
+    }
+  }
+  return crcReg ^ 0xFFFF;
+}
+
+// for (uint8_t j = 0; j < data_number; j++) {
+//   Serial.print(" 0x");
+//   Serial.print(data[j], HEX);
+//   Serial.print(",");
+// }
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// #include <Arduino.h>
+// // #include <SPI.h>
+// #include <Wire.h>
+// #include <Adafruit_ADS1X15.h>
+
+// #include "max1932_driver.h"
+// #include "tmp100_driver.h"
+// #include "hardware_pins.h"
+// #include "calculos.h"
+
+// #define DEBUG_MAIN
+// #define MAX_ITER 10
+// #define Elementos 100                     // Cantidad de muestras
+// #define OverVoltage 3                     // Sobrevoltaje aplicado para la polarización de los SiPMs
+// #define Switching_Time_MAX 4              // Microseconds
+
+// #define ADS_ADDRESS 0x48 //48
+// #define P PA20
+
+// float inverseVoltage[Elementos];          // Tensión inversa aplicada al SiPM para obtener "inverseCurrent_I"
+// uint8_t inverseVoltage_command[Elementos];
+// float inverseCurrent_I[Elementos];        // Corriente inversa, convertida de "inverseCurrent_V[]"
+
+// Adafruit_ADS1115 ads;
+
+// unsigned long time_ini;
+// float temperature = 0.0;
+
+// void obtain_Curve_inverseVI(float Temperature);
+
+// void setup() {
+//   delay(4000);
+
+//   Serial.begin(115200);
+//   Serial.println("Serial iniciado");
+
+//   // start_max1932();
+//   // for ( uint8_t iter_counter = 0; iter_counter <= MAX_ITER ; iter_counter ++) {
+//   //   if ( start_tmp100() ) { // Configuración del TMP100, HACER EN VARIOS INTENTOS
+//   //     #ifdef DEBUG_MAIN
+//   //     Serial.println("DEBUG (setupCOUNT) -> Inicialización de TMP100 exitosa.");
+//   //     #endif
+//   //     break;
+//   //   } else {
+//   //     #ifdef DEBUG_MAIN
+//   //     Serial.print("DEBUG (setupCOUNT) -> Inicialización de TMP100 fallida: ");
+//   //     Serial.println(iter_counter);
+//   //     #endif
+//   //     delay(10);
+//   //   }
+//   // }
+//   if ( ads.begin() ) { // ADS_ADDRESS, &Wire1
+//     ads.setDataRate(RATE_ADS1115_860SPS);
+//     Serial.print("ADS iniciado, DataRate: ");
+//     Serial.println(ads.getDataRate());
+//   }
+
+//   time_ini = millis();
+//   Serial.println("Setup finalizado");
+
+//   analogWriteResolution(12);
+//   pinMode(A0, OUTPUT);
+//   Serial.println("i, VoltageT, VCorriente");
+//   for (int i = 0; i < 4095; i+=4) {
+//     Serial.print(i);
+//     Serial.print(",");
+//     Serial.print((3.3/4095)*i, 4);
+//     Serial.print(",");
+//     analogWrite(A0, i);
+//     delay(4);
+//     Serial.println(ads.computeVolts(ads.readADC_SingleEnded(0)), 6);
+//   }
+//   while ( 1 );
+// }
+
+// void loop() {
+//   if ( millis() - time_ini >= 5000 ) {
+//     Serial.println("Datos obtenidos: ");
+//     Serial.print("Temperatura: ");
+
+//     temperature = 28.0;//read_tmp100();
+//     // Serial.println(temperature, 4);
+//     obtain_Curve_inverseVI(temperature);
+
+//     time_ini = millis();
+//     init_butterworth();
+//     Serial.println("i, Voltage, Corriente, Voltage*10.97, Corriente/11000");
+//     for ( uint8_t i = 0; i < Elementos; i++ ) {
+//       Serial.print(i);
+//       Serial.print(",");
+//       Serial.print(inverseVoltage[i], 6);
+//       Serial.print(",");
+//       Serial.print(inverseCurrent_I[i], 6);
+//       Serial.print(",");
+//       Serial.print(inverseVoltage[i]*10.97, 6);
+//       Serial.print(",");
+//       Serial.println(inverseCurrent_I[i]/11000, 10);
+//     }
+//     Serial.print("Breakdown Voltage sin filtrar: ");
+//     Serial.println((obtain_Vbd(inverseCurrent_I, inverseVoltage, Elementos) * 10.97) - 3.581, 6);
+//     float* Filtered_voltage = apply_butterworth(inverseVoltage, Elementos);
+//     float* Filtered_current = apply_butterworth(inverseCurrent_I, Elementos);
+//     Serial.print("Voltage y Corriente Filtrados");
+//     for ( uint8_t i = 0; i < Elementos; i++ ) {
+//       Serial.println(Filtered_voltage[i], 6);
+//       Serial.print(", ");
+//       Serial.print(Filtered_current[i], 6);
+//     }
+//     Serial.print("Breakdown Voltage Filtrado: ");
+//     Serial.println((obtain_Vbd(Filtered_current, Filtered_voltage, Elementos) * 10.97) - 3.581, 6);
+//   }
+  
+//   Serial.println("Siguiente toma de muestras");
+//   delay(5000);
+// }
+
+// /************************************************************************************************************
+//  * @fn      obtain_Curve_inverseVI
+//  * @brief   Se obtiene la curva I-V inversa del SiPM aplicando un filtro de butterworth a las lecturas del
+//  *          ADC.
+//  * @param   Temperature: obtenido del sensor TMP100 para la estimación teorica
+//  * @return  ---todo
+//  * TODO: - Se necesita un algoritmo para setear el Vbias correctamente
+//  * fny <= fs/2
+//  */
+// void obtain_Curve_inverseVI(float Temperature) {
+//   // float Vbd_Teo = Vbd_teorical(Temperature);
+//   float Vlimite_inferior = 26.2;//max(21.2, Vbd_Teo - 2); // 21.2 es el minimo valor a la salida del MAX
+//   float Vlimite_superior = 30.2;//min(33.2, Vbd_Teo + 2); // 33.2 es el máximo valor a la salida del MAX
+//   uint8_t Vlim_sup = VMax_command(Vlimite_inferior);
+//   uint8_t Vlim_inf = VMax_command(Vlimite_superior);
+//   uint8_t paso = (uint8_t)(Vlim_sup - Vlim_inf) / Elementos;
+//   unsigned long start_time, total_time;
+
+//   #ifdef DEBUG_MAIN
+//   Serial.print("Limites: ");
+//   Serial.print(Vlimite_inferior);
+//   Serial.print(", ");
+//   Serial.print(Vlimite_superior);
+//   Serial.print(", ");
+//   Serial.print(Vlim_inf, HEX);
+//   Serial.print(", ");
+//   Serial.print(Vlim_sup, HEX);
+//   Serial.print(", paso: ");
+//   Serial.print(paso);
+//   #endif
+
+//   for ( uint8_t i = 0; i < Elementos; i++ ) {
+//     inverseVoltage_command[i] = Vlim_inf + i * paso;
+//   }
+
+//   start_time = micros();
+//   for ( uint8_t i = 0; i < Elementos; i++ ) {
+//     write_max_reg(inverseVoltage_command[i]);
+//     // delayMicroseconds(Switching_Time_MAX); // 4 microseconds
+//     delay(4); // por la frecuencia de muestreo del ADS1115 que es 860 SPS (muestreo c/ 1.16ms)
+//     // Aquí se debe validar la tensión seteada en la salida del max con el ADC
+//     inverseVoltage[i] = ads.computeVolts(ads.readADC_SingleEnded(0));
+//     inverseCurrent_I[i] = ads.computeVolts(ads.readADC_SingleEnded(1)); // Microamperios
+//     // Serial.print(i);
+//     // Serial.print(",");
+//     // Serial.print(inverseVoltage[i], 6);
+//     // Serial.print(",");
+//     // Serial.println(inverseCurrent_I[i], 6);
+
+//     // delay(5000);
+//   }
+//   total_time = micros() - start_time;
+//   Serial.print("Tiempo promedio de muestreo [ms]: ");
+//   float Ts = (float)total_time / (Elementos * 1000);
+//   Serial.println(Ts);
+//   Fs = 1 / Ts;
+//   Fc = 0.1 * Fs / 2;  
+// }
+
+
+
+
+
 
 
 
@@ -383,42 +557,6 @@ void setup() {
 }
 
 */
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-  // Serial1.begin(115200);
-  // Serial2.begin(115200);
-
-  // pinMode(SPI_CS_MAX, OUTPUT);
-  // digitalWrite(SPI_CS_MAX, HIGH);
-
-  // Serial.println("SPI begin");
-  // start_max1932();
-
-  /////////////////////////////////////
-
-  // pinMode(SPI_CS_MAX, OUTPUT);
-  // digitalWrite(SPI_CS_MAX, HIGH);
-
-  // Serial.println("SPI begin");
-  // start_max1932();
-
-  // if ( !write_max_reg(0xC8) ) {
-  //   Serial.println("Comando max incorrecto");
-  // }
-
-  // delay(5000);
-
-  // if ( !write_max_reg(0x64) ) {
-  //   Serial.println("Comando max incorrecto");
-  // }
-
-  // delay(5000);
-
-  // if ( !write_max_reg(0x05) ) {
-  //   Serial.println("Comando max incorrecto");
-  // }
 
 //////////////////////////////////////
   // digitalWrite(P, LOW);
