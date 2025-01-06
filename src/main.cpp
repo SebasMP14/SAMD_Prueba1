@@ -29,10 +29,10 @@ unsigned long date;
 bool state = false;
 bool state_recibir = false;
 uint32_t Time;
-uint8_t tramaCOUNT[TRAMA_SIZE] = {0x01, 0x01, 0x00};
-uint8_t tramaTRANSFER[TRAMA_SIZE] = {0x02, 0x01, 0x00};
-uint8_t ack_OBC_to_MUA[TRAMA_SIZE] = {0x04, 0x01, 0x00};
-uint8_t ack_MUA_to_OBC = 0x07; // ACK MUA to OBC
+uint8_t ID_COUNT_MODE         = 0x01;
+uint8_t ID_TRANSFER_DATA_MODE = 0x02;
+uint8_t ACK_OBC_TO_MUA        = 0x04;
+uint8_t ACK_MUA_TO_OBC        = 0x07; // ACK MUA to OBC
 
 RTC_SAMD51 rtc;
 
@@ -76,21 +76,6 @@ void setup() {
 
   Time = millis();
 
-  // memset(&tramaCOUNT[3], 0x00, TRAMA_SIZE - 5);
-  // for (uint8_t j = 0; j < TRAMA_SIZE; j++) {
-  //   Serial.print(" 0x");
-  //   Serial.print(tramaCOUNT[j], HEX);
-  //   Serial.print(",");
-  // }
-  // Serial.println();
-  // memset(&tramaTRANSFER[3], 0x00, TRAMA_SIZE - 5);
-
-  uint16_t crc = calcularCRC(tramaCOUNT, TRAMA_SIZE - 2);
-  tramaCOUNT[TRAMA_SIZE - 2] = (crc >> 8) & 0xFF; // Byte alto
-  tramaCOUNT[TRAMA_SIZE - 1] = crc & 0xFF;        // Byte bajo
-  crc = calcularCRC(tramaTRANSFER, TRAMA_SIZE - 2);
-  tramaTRANSFER[TRAMA_SIZE - 2] = (crc >> 8) & 0xFF; // Byte alto
-  tramaTRANSFER[TRAMA_SIZE - 1] = crc & 0xFF;        // Byte bajo
   Serial.println("Setup Finalizado");
 
   // uint8_t trama_prueba[30] = {0x4A, 0x47, 0x36, 0x59, 0x42, 0x57, 0x30, 0x4A, 0x47, 0x36,
@@ -103,31 +88,20 @@ void setup() {
 
 void loop() {
   if ( millis() - Time > 5000 && !state ) { // Establecer COUNT MODE
-    uint8_t recibido[44];
-    uint16_t CRC;
+    uint8_t recibido;
     
-    Serial1.write(tramaCOUNT, TRAMA_SIZE);
-    while ( Serial1.available() > 44 );
+    Serial1.write(ID_COUNT_MODE);
+    while ( Serial1.available() > 1 );
     
-    Serial1.readBytes(recibido, TRAMA_SIZE);
-    Serial.print("Recibido de Serial1 ");
-    for (int i = 0; i < 44; i++) {
-      Serial.print("0x");
-      Serial.print(recibido[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
-
-    CRC = calcularCRC(recibido, 42);
-    uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
-    if ( CRC == CRC_MUA && recibido[0] == ack_MUA_to_OBC) {
+    Serial1.readBytes(&recibido, 1);
+    Serial.print("Recibido de Serial1: 0x");
+    Serial.println(recibido, HEX);
+    
+    if ( recibido == ACK_MUA_TO_OBC ) {
       state = true;
       Serial.println("Estado (COUNT) establecido exitosamente");
     } else {
-      Serial.print("Estado fallido, (CRC, CRC_MUA): 0x");
-      Serial.print(CRC, HEX);
-      Serial.print(", 0x");
-      Serial.println(CRC_MUA, HEX);
+      Serial.print("Estado fallido");
     }
 
     Time = millis();
@@ -174,33 +148,19 @@ void loop() {
 
   if ( millis() - Time > 40000 && state ) { // Establecer TRANSFER MODE
     Serial.println("Preparando para establecer TRANSFER MODE");
-    uint8_t recibido[44];
-    uint16_t CRC;
     
-    Serial1.write(tramaTRANSFER, TRAMA_SIZE);
-    while ( Serial1.available() < 44 );
-    
-    Serial1.readBytes(recibido, TRAMA_SIZE);
-    Serial.print("Recibido de Serial1 (p transfer)");
-    for (int i = 0; i < 44; i++) {
-      Serial.print("0x");
-      Serial.print(recibido[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
+    Serial1.write(ID_TRANSFER_DATA_MODE);
 
-    CRC = calcularCRC(recibido, 42);
-    uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
-    if ( CRC == CRC_MUA && recibido[0] == ack_MUA_to_OBC) {
-      state = true;
-      Serial.println("Estado (TRANSFER) establecido exitosamente");
-      state_recibir = true;
-    } else {
-      Serial.print("Estado fallido, (CRC, CRC_MUA): 0x");
-      Serial.print(CRC, HEX);
-      Serial.print(", 0x");
-      Serial.println(CRC_MUA, HEX);
-    }
+    Serial.println("Estado enviado");
+    state_recibir = true;
+    // delay(100);
+    // if ( Serial1.available() ) {
+    //   state = true;
+    //   Serial.println("Estado (TRANSFER_DATA) establecido exitosamente");
+    //   state_recibir = true;
+    // } else {
+    //   Serial.print("Estado fallido");
+    // }
 
     Time = millis();
   }
@@ -208,13 +168,13 @@ void loop() {
   if ( state_recibir ) {
     uint8_t recibido[44];
     uint16_t CRC;
-    delay(200);
     Serial.println("Esperando datos");
+    delay(200);
     while ( Serial1.available() < TRAMA_SIZE );
 
     Serial1.readBytes(recibido, TRAMA_SIZE);
     Serial.print("Recibido de Serial1 (DATOS)");
-    for (int i = 0; i < 44; i++) {
+    for (int i = 0; i < TRAMA_SIZE; i++) {
       Serial.print("0x");
       Serial.print(recibido[i], HEX);
       Serial.print(" ");
@@ -226,7 +186,7 @@ void loop() {
     if ( CRC == CRC_MUA && recibido[0] == 0x03) {
       state = true;
       Serial.println("Datos recibidos correctamente");
-      
+      Serial1.write(ACK_OBC_TO_MUA);
     } else {
       Serial.println("error en la recepción");
     }
