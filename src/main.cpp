@@ -12,247 +12,345 @@
  * 
  */
 
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/* Prueba de comunicación UART con RTC, el programa recibe los datos */
-
 #include <Arduino.h>
-
+#include "ads1260_driver.h"
 #include "hardware_pins.h"
-#include "RTC_SAMD51.h"
-#include "DateTime.h"
+#include <SPI.h>
 
-#define DEBUG_MAIN
-#define P PA20
-#define TRAMA_SIZE 44
-
-unsigned long date;
-bool state = false;
-bool state_recibir = false;
-uint32_t Time;
-uint8_t ID_COUNT_MODE         = 0x01;
-uint8_t ID_TRANSFER_DATA_MODE = 0x02;
-uint8_t ACK_OBC_TO_MUA        = 0x04;
-uint8_t ACK_MUA_TO_OBC        = 0x07; // ACK MUA to OBC
-
-RTC_SAMD51 rtc;
-
-uint16_t calcularCRC(const uint8_t *data, size_t length);
-uint16_t calcularCRC1(const uint8_t *data, size_t length);
-uint16_t mk_CRC(uint8_t *data, uint8_t data_number); // Para Probar del OBC
+// ADS1260 ads1260(&SPI1, SPI_CS_ADC);
 
 void setup() {
   delay(4000);
 
   Serial.begin(115200);
-  Serial.println("Serial iniciado");
-  while ( !rtc.begin() ) {
-    delay(1000);
-    Serial.println("No rtc");
-  }
-  Serial.println("RTC iniciado.");
-  DateTime now = DateTime(F(__DATE__), F(__TIME__));
-  rtc.adjust(now);
-  Serial1.begin(115200);
-  Serial.println("Serial1 Iniciado");
-  Serial2.begin(115200);
-  Serial.println("Serial2 Iniciado");
+  Serial.println("HOLA MUNDO PLACA FINAL V1...");
 
-  DateTime currentTime = rtc.now();
+  pinMode(INTERFACE_EN, OUTPUT);
+  digitalWrite(INTERFACE_EN, HIGH);
 
-  Serial.print("Fecha: ");
-  Serial.print(currentTime.year());
-  Serial.print("-");
-  Serial.print(currentTime.month());
-  Serial.print("-");
-  Serial.print(currentTime.day());
-  Serial.print(" Hora: ");
-  Serial.print(currentTime.hour());
-  Serial.print(":");
-  Serial.print(currentTime.minute());
-  Serial.print(":");
-  Serial.println(currentTime.second());
+  // ads1260.begin();
 
-  pinMode(P, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
 
-  Time = millis();
+  // ads1260.noOperation();
+  // ads1260.reset();
+  // ads1260.noOperation();
 
-  Serial.println("Setup Finalizado");
+  Serial.println("Setup finalizado...");
 
-  // uint8_t trama_prueba[30] = {0x4A, 0x47, 0x36, 0x59, 0x42, 0x57, 0x30, 0x4A, 0x47, 0x36,
-  //                            0x59, 0x50, 0x59, 0x30, 0x3E, 0xF0, 0xAA, 0x03, 0x12, 0x34, 
-  //                            0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78};
-  // uint16_t crc1 = calcularCRC(trama_prueba, 30);
-  // uint16_t crc2 = mk_CRC(trama_prueba, 30);
+  pinMode(SPI_CS_ADC, OUTPUT);
+  digitalWrite(SPI_CS_ADC, HIGH);
 
+  SPI1.begin();
+  SPI1.beginTransaction( SPISettings(SPI_CLK_SPEED, MSBFIRST, SPI_MODE0) );
+
+  digitalWrite(SPI_CS_ADC, LOW);
+  uint8_t response1 = SPI1.transfer(0x00);
+  uint8_t response2 = SPI1.transfer(0x00);
+  digitalWrite(SPI_CS_ADC, HIGH);
+
+  SPI1.endTransaction();
+
+  Serial.print("DEBUG (sendCommand) -> response1: 0x");
+  Serial.print(response1, HEX);
+  Serial.print(", response2: 0x");
+  Serial.println(response2, HEX);
+  
 }
 
 void loop() {
-  if ( millis() - Time > 5000 && !state ) { // Establecer COUNT MODE
-    uint8_t recibido;
-    
-    Serial1.write(ID_COUNT_MODE);
-    while ( Serial1.available() > 1 );
-    
-    Serial1.readBytes(&recibido, 1);
-    Serial.print("Recibido de Serial1: 0x");
-    Serial.println(recibido, HEX);
-    
-    if ( recibido == ACK_MUA_TO_OBC ) {
-      state = true;
-      Serial.println("Estado (COUNT) establecido exitosamente");
-    } else {
-      Serial.print("Estado fallido");
-    }
+  delay(500);
+  digitalWrite(LED_BUILTIN, HIGH);
+  delay(500);
+  digitalWrite(LED_BUILTIN, LOW);
+}
 
-    Time = millis();
-  }
+// #include <Arduino.h>
+
+// #include "hardware_pins.h"
+// #include "dac8551_driver.h"
+// // #include "tmp100_driver.h"
+// #include <SPI.h>
+
+// #define DEBUG_MAIN
+
+// void setup() {
+//   delay(4000);
+
+//   Serial.begin(115200);
+//   Serial.println("Serial iniciado");
+
+//   // start_dac8551();
+//   pinMode(SPI_CS_ADC, OUTPUT);
+//   digitalWrite(SPI_CS_ADC, HIGH);
+//   SPI1.begin();
+//   // start_tmp100();
+
+//   // Serial.print("Temperatura: ");
+//   // Serial.println(read_tmp100(), 4);
+
+//   Serial.println("Setup finalizado");
+// }
+
+// void loop() {
+//   delay(1000);
+//   // Serial.print("Temperatura: ");
+//   // Serial.println(read_tmp100(), 4);
+
+//   for (uint8_t i = 0; i < 256; i++) {
+//     // write_dac8551_reg(i*256);
+//     SPI1.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1));
+//     digitalWrite(SPI_CS_ADC, LOW);  // selección
+//     SPI1.transfer(0x00);
+//     SPI1.transfer16(i*256);
+//     digitalWrite(SPI_CS_ADC, HIGH);
+//     SPI1.endTransaction();
+//     delay(80);
+//     Serial.print(", ");
+//     Serial.print(i);
+//   }
+//   Serial.println("end");
+// }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+/* Prueba de comunicación UART con RTC, el programa recibe los datos */
+
+// #include <Arduino.h>
+
+// #include "hardware_pins.h"
+// #include "RTC_SAMD51.h"
+// #include "DateTime.h"
+
+// #define DEBUG_MAIN
+// #define TRAMA_SIZE 44
+
+// unsigned long date;
+// bool state = false;
+// bool state_recibir = false;
+// uint32_t Time;
+// uint8_t ID_COUNT_MODE         = 0x01;
+// uint8_t ID_TRANSFER_DATA_MODE = 0x02;
+// uint8_t ACK_OBC_TO_MUA        = 0x04;
+// uint8_t ACK_MUA_TO_OBC        = 0x07; // ACK MUA to OBC
+
+// RTC_SAMD51 rtc;
+
+// uint16_t calcularCRC(const uint8_t *data, size_t length);
+// uint16_t calcularCRC1(const uint8_t *data, size_t length);
+// uint16_t mk_CRC(uint8_t *data, uint8_t data_number); // Para Probar del OBC
+
+// void setup() {
+//   delay(4000);
+
+//   Serial.begin(115200);
+//   Serial.println("Serial iniciado");
+//   while ( !rtc.begin() ) {
+//     delay(1000);
+//     Serial.println("No rtc");
+//   }
+//   Serial.println("RTC iniciado.");
+//   DateTime now = DateTime(F(__DATE__), F(__TIME__));
+//   rtc.adjust(now);
+//   Serial1.begin(115200);
+//   Serial.println("Serial1 Iniciado");
+//   Serial2.begin(115200);
+//   Serial.println("Serial2 Iniciado");
+
+//   DateTime currentTime = rtc.now();
+
+//   Serial.print("Fecha: ");
+//   Serial.print(currentTime.year());
+//   Serial.print("-");
+//   Serial.print(currentTime.month());
+//   Serial.print("-");
+//   Serial.print(currentTime.day());
+//   Serial.print(" Hora: ");
+//   Serial.print(currentTime.hour());
+//   Serial.print(":");
+//   Serial.print(currentTime.minute());
+//   Serial.print(":");
+//   Serial.println(currentTime.second());
+
+//   Time = millis();
+
+//   Serial.println("Setup Finalizado");
+
+//   // uint8_t trama_prueba[30] = {0x4A, 0x47, 0x36, 0x59, 0x42, 0x57, 0x30, 0x4A, 0x47, 0x36,
+//   //                            0x59, 0x50, 0x59, 0x30, 0x3E, 0xF0, 0xAA, 0x03, 0x12, 0x34, 
+//   //                            0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78};
+//   // uint16_t crc1 = calcularCRC(trama_prueba, 30);
+//   // uint16_t crc2 = mk_CRC(trama_prueba, 30);
+
+// }
+
+// void loop() {
+//   if ( millis() - Time > 5000 && !state ) { // Establecer COUNT MODE
+//     uint8_t recibido;
+    
+//     Serial1.write(ID_COUNT_MODE);
+//     while ( Serial1.available() > 1 );
+    
+//     Serial1.readBytes(&recibido, 1);
+//     Serial.print("Recibido de Serial1: 0x");
+//     Serial.println(recibido, HEX);
+    
+//     if ( recibido == ACK_MUA_TO_OBC ) {
+//       state = true;
+//       Serial.println("Estado (COUNT) establecido exitosamente");
+//     } else {
+//       Serial.print("Estado fallido");
+//     }
+
+//     Time = millis();
+//   }
   
-  if ( Serial2.available() > 0 ) { // Para transmitir unixtime
-    uint8_t read2;
-    Serial2.readBytes(&read2, 1);
+//   if ( Serial2.available() > 0 ) { // Para transmitir unixtime
+//     uint8_t read2;
+//     Serial2.readBytes(&read2, 1);
 
-    #ifdef DEBUG_MAIN
-    Serial.print("DEBUG (loop) -> Recibido Serial2: 0x");
-    Serial.println(read2, HEX);
-    #endif
+//     #ifdef DEBUG_MAIN
+//     Serial.print("DEBUG (loop) -> Recibido Serial2: 0x");
+//     Serial.println(read2, HEX);
+//     #endif
     
-    if ( read2 == 0xBB ) { // REQUEST_TIMESTAMP
-      date = rtc.now().unixtime();
-      Serial2.write((uint8_t *)&date, sizeof(date));
-      #ifdef DEBUG_MAIN
-      Serial.print("DEBUG (loop) -> timestamp enviado: ");
-      Serial.println(date);
-      #endif
-    }
-  }
+//     if ( read2 == 0xBB ) { // REQUEST_TIMESTAMP
+//       date = rtc.now().unixtime();
+//       Serial2.write((uint8_t *)&date, sizeof(date));
+//       #ifdef DEBUG_MAIN
+//       Serial.print("DEBUG (loop) -> timestamp enviado: ");
+//       Serial.println(date);
+//       #endif
+//     }
+//   }
 
-  if ( millis() - Time > 10000 && !state ) {
-    Serial.print("Date: ");
-    Serial.print(rtc.now().year());
-    Serial.print("-");
-    Serial.print(rtc.now().month());
-    Serial.print("-");
-    Serial.print(rtc.now().day());
-    Serial.print(" Hora: ");
-    Serial.print(rtc.now().hour());
-    Serial.print(":");
-    Serial.print(rtc.now().minute());
-    Serial.print(":");
-    Serial.println(rtc.now().second());
-    Serial.print(", ");
-    Serial.print(rtc.now().unixtime());
-    Serial.print(", ");
-    Serial.println(rtc.now().unixtime(), HEX);
-    Time = millis();
-  }
+//   if ( millis() - Time > 10000 && !state ) {
+//     Serial.print("Date: ");
+//     Serial.print(rtc.now().year());
+//     Serial.print("-");
+//     Serial.print(rtc.now().month());
+//     Serial.print("-");
+//     Serial.print(rtc.now().day());
+//     Serial.print(" Hora: ");
+//     Serial.print(rtc.now().hour());
+//     Serial.print(":");
+//     Serial.print(rtc.now().minute());
+//     Serial.print(":");
+//     Serial.println(rtc.now().second());
+//     Serial.print(", ");
+//     Serial.print(rtc.now().unixtime());
+//     Serial.print(", ");
+//     Serial.println(rtc.now().unixtime(), HEX);
+//     Time = millis();
+//   }
 
-  if ( millis() - Time > 40000 && state ) { // Establecer TRANSFER MODE
-    Serial.println("Preparando para establecer TRANSFER MODE");
+//   if ( millis() - Time > 40000 && state ) { // Establecer TRANSFER MODE
+//     Serial.println("Preparando para establecer TRANSFER MODE");
     
-    Serial1.write(ID_TRANSFER_DATA_MODE);
+//     Serial1.write(ID_TRANSFER_DATA_MODE);
 
-    Serial.println("Estado enviado");
-    state_recibir = true;
-    // delay(100);
-    // if ( Serial1.available() ) {
-    //   state = true;
-    //   Serial.println("Estado (TRANSFER_DATA) establecido exitosamente");
-    //   state_recibir = true;
-    // } else {
-    //   Serial.print("Estado fallido");
-    // }
+//     Serial.println("Estado enviado");
+//     state_recibir = true;
+//     // delay(100);
+//     // if ( Serial1.available() ) {
+//     //   state = true;
+//     //   Serial.println("Estado (TRANSFER_DATA) establecido exitosamente");
+//     //   state_recibir = true;
+//     // } else {
+//     //   Serial.print("Estado fallido");
+//     // }
 
-    Time = millis();
-  }
+//     Time = millis();
+//   }
 
-  if ( state_recibir ) {
-    uint8_t recibido[44];
-    uint16_t CRC;
-    Serial.println("Esperando datos");
-    delay(200);
-    while ( Serial1.available() < TRAMA_SIZE );
+//   if ( state_recibir ) {
+//     uint8_t recibido[44];
+//     uint16_t CRC;
+//     Serial.println("Esperando datos");
+//     delay(200);
+//     while ( Serial1.available() < TRAMA_SIZE );
 
-    Serial1.readBytes(recibido, TRAMA_SIZE);
-    Serial.print("Recibido de Serial1 (DATOS)");
-    for (int i = 0; i < TRAMA_SIZE; i++) {
-      Serial.print("0x");
-      Serial.print(recibido[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
+//     Serial1.readBytes(recibido, TRAMA_SIZE);
+//     Serial.print("Recibido de Serial1 (DATOS)");
+//     for (int i = 0; i < TRAMA_SIZE; i++) {
+//       Serial.print("0x");
+//       Serial.print(recibido[i], HEX);
+//       Serial.print(" ");
+//     }
+//     Serial.println();
 
-    CRC = calcularCRC(recibido, 42);
-    uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
-    if ( CRC == CRC_MUA && recibido[0] == 0x03) {
-      state = true;
-      Serial.println("Datos recibidos correctamente");
-      Serial1.write(ACK_OBC_TO_MUA);
-    } else {
-      Serial.println("error en la recepción");
-    }
-  }
-  delay(1000);
-}
+//     CRC = calcularCRC(recibido, 42);
+//     uint16_t CRC_MUA = (recibido[42] << 8) | recibido[43];
+//     if ( CRC == CRC_MUA && recibido[0] == 0x03) {
+//       state = true;
+//       Serial.println("Datos recibidos correctamente");
+//       Serial1.write(ACK_OBC_TO_MUA);
+//     } else {
+//       Serial.println("error en la recepción");
+//     }
+//   }
+//   delay(1000);
+// }
 
-uint16_t calcularCRC(const uint8_t *data, size_t length) {
-  uint32_t crc = 0xFFFF;                // Valor inicial
-  uint32_t pol = 0x8408;                // Polinomio
-  uint8_t temp_data[length];
-  uint8_t temp;
+// uint16_t calcularCRC(const uint8_t *data, size_t length) {
+//   uint32_t crc = 0xFFFF;                // Valor inicial
+//   uint32_t pol = 0x8408;                // Polinomio
+//   uint8_t temp_data[length];
+//   uint8_t temp;
 
-  memcpy(temp_data, data, length);
+//   memcpy(temp_data, data, length);
 
-  for ( uint8_t i = 0; i < length; i++ ) {
-    for ( uint8_t j = 0; j < 8; j++ ) {
-      temp = (crc ^ temp_data[i]) & 0x0001;
-      crc = crc >> 1;
-      if ( temp == 1 ) {
-        crc = crc ^ pol;
-      }
-      temp_data[i] = temp_data[i] >> 1;
-    }
-  }
+//   for ( uint8_t i = 0; i < length; i++ ) {
+//     for ( uint8_t j = 0; j < 8; j++ ) {
+//       temp = (crc ^ temp_data[i]) & 0x0001;
+//       crc = crc >> 1;
+//       if ( temp == 1 ) {
+//         crc = crc ^ pol;
+//       }
+//       temp_data[i] = temp_data[i] >> 1;
+//     }
+//   }
   
-  return crc ^ 0xFFFF;
-}
+//   return crc ^ 0xFFFF;
+// }
 
-uint16_t calcularCRC1(const uint8_t *data, size_t length) {
-  uint16_t crc = 0xFFFF;                // Valor inicial
-  for (size_t i = 0; i < length; i++) {
-    crc ^= (data[i] << 8);
-    for (uint8_t bit = 0; bit < 8; bit++) {
-      if (crc & 0x8000) {
-        crc = (crc << 1) ^ 0x8408;      // Polinomio
-      } else {
-        crc <<= 1;
-      }
-    }
-  }
-  return crc ^ 0xFFFF;
-}
+// uint16_t calcularCRC1(const uint8_t *data, size_t length) {
+//   uint16_t crc = 0xFFFF;                // Valor inicial
+//   for (size_t i = 0; i < length; i++) {
+//     crc ^= (data[i] << 8);
+//     for (uint8_t bit = 0; bit < 8; bit++) {
+//       if (crc & 0x8000) {
+//         crc = (crc << 1) ^ 0x8408;      // Polinomio
+//       } else {
+//         crc <<= 1;
+//       }
+//     }
+//   }
+//   return crc ^ 0xFFFF;
+// }
 
-// Función CRC basada en mk_CRC
-uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
-  uint32_t crcReg = 0xFFFF;
-  uint32_t calc = 0x8408;
-  uint8_t w;
+// // Función CRC basada en mk_CRC
+// uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
+//   uint32_t crcReg = 0xFFFF;
+//   uint32_t calc = 0x8408;
+//   uint8_t w;
 
-  // Crear una copia de los datos para trabajar con ellos sin modificar el original
-  uint8_t cal_data[data_number];
-  memcpy(cal_data, data, data_number);
+//   // Crear una copia de los datos para trabajar con ellos sin modificar el original
+//   uint8_t cal_data[data_number];
+//   memcpy(cal_data, data, data_number);
 
-  for (int32_t k = 0; k < data_number; k++) {
-    for (int32_t i = 0; i < 8; i++) {
-      w = (crcReg ^ cal_data[k]) & 0x0001;
-      crcReg = crcReg >> 1;
-      if (w == 1) {
-        crcReg = crcReg ^ calc;
-      }
-      cal_data[k] = cal_data[k] >> 1; // Solo modificamos la copia
-    }
-  }
-  return crcReg ^ 0xFFFF;
-}
+//   for (int32_t k = 0; k < data_number; k++) {
+//     for (int32_t i = 0; i < 8; i++) {
+//       w = (crcReg ^ cal_data[k]) & 0x0001;
+//       crcReg = crcReg >> 1;
+//       if (w == 1) {
+//         crcReg = crcReg ^ calc;
+//       }
+//       cal_data[k] = cal_data[k] >> 1; // Solo modificamos la copia
+//     }
+//   }
+//   return crcReg ^ 0xFFFF;
+// }
 
 // for (uint8_t j = 0; j < data_number; j++) {
 //   Serial.print(" 0x");
@@ -260,6 +358,7 @@ uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
 //   Serial.print(",");
 // }
 
+//// Obtencion de puntos de la curva IV ////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // #include <Arduino.h>
 // // #include <SPI.h>
@@ -267,6 +366,7 @@ uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
 // #include <Adafruit_ADS1X15.h>
 
 // #include "max1932_driver.h"
+// #include "dac8551_driver.h"
 // #include "tmp100_driver.h"
 // #include "hardware_pins.h"
 // #include "calculos.h"
@@ -297,21 +397,21 @@ uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
 //   Serial.begin(115200);
 //   Serial.println("Serial iniciado");
 
-//   // start_max1932();
-//   // for ( uint8_t iter_counter = 0; iter_counter <= MAX_ITER ; iter_counter ++) {
-//   //   if ( start_tmp100() ) { // Configuración del TMP100, HACER EN VARIOS INTENTOS
-//   //     #ifdef DEBUG_MAIN
-//   //     Serial.println("DEBUG (setupCOUNT) -> Inicialización de TMP100 exitosa.");
-//   //     #endif
-//   //     break;
-//   //   } else {
-//   //     #ifdef DEBUG_MAIN
-//   //     Serial.print("DEBUG (setupCOUNT) -> Inicialización de TMP100 fallida: ");
-//   //     Serial.println(iter_counter);
-//   //     #endif
-//   //     delay(10);
-//   //   }
-//   // }
+//   start_dac8551();
+//   for ( uint8_t iter_counter = 0; iter_counter <= MAX_ITER ; iter_counter ++) {
+//     if ( start_tmp100() ) { // Configuración del TMP100, HACER EN VARIOS INTENTOS
+//       #ifdef DEBUG_MAIN
+//       Serial.println("DEBUG (setupCOUNT) -> Inicialización de TMP100 exitosa.");
+//       #endif
+//       break;
+//     } else {
+//       #ifdef DEBUG_MAIN
+//       Serial.print("DEBUG (setupCOUNT) -> Inicialización de TMP100 fallida: ");
+//       Serial.println(iter_counter);
+//       #endif
+//       delay(10);
+//     }
+//   }
 //   if ( ads.begin() ) { // ADS_ADDRESS, &Wire1
 //     ads.setDataRate(RATE_ADS1115_860SPS);
 //     Serial.print("ADS iniciado, DataRate: ");
@@ -324,7 +424,7 @@ uint16_t mk_CRC(uint8_t *data, uint8_t data_number) {
 //   analogWriteResolution(12);
 //   pinMode(A0, OUTPUT);
 //   Serial.println("i, VoltageT, VCorriente");
-//   for (int i = 0; i < 4095; i+=4) {
+//   for ( int i = 0; i < 4095; i += 4 ) {
 //     Serial.print(i);
 //     Serial.print(",");
 //     Serial.print((3.3/4095)*i, 4);

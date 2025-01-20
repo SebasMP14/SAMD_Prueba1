@@ -41,8 +41,8 @@ void TC2_Handler() {
   if (TC2->COUNT32.INTFLAG.bit.MC0) { // Si ocurre un overflow
     TC2->COUNT32.INTFLAG.bit.MC0 = 1; // Limpiar la bandera de interrupción
     TC2->COUNT32.COUNT.reg = 0x0; // Se resetea el registro
-    digitalWrite(SCL_Sensor, !digitalRead(SCL_Sensor)); // Alternar el estado del LED
-    Serial.println("Interrupción.");
+    // digitalWrite(SCL_Sensor, !digitalRead(SCL_Sensor)); // Alternar el estado del LED
+    Serial.println("Interrupción TC.");
   }
 
 }
