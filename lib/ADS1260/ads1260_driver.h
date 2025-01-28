@@ -6,13 +6,19 @@
 #include <SPI.h>
 #include "hardware_pins.h"
 
-#define DEBUG_ADS
-#define SPI_CLK_SPEED 1000000
+// #define DEBUG_ADS
+#define SPI_CLK_SPEED       1000000   // Hz
+#define START_UP_TIME_ADS   150       // ms
+#define INTERNAL_REF        2.498     // V
+#define EXTERNAL_REF        4.997     // V
+// #define EXTERNAL_REF        4.9362     // V
+// #define EXTERNAL_REF        5.105     // V
 
 class ADS1260 {
   private:
     SPIClass* spi;
     uint8_t chipSelectPin;
+    ADS1260_REGISTER_Type REGISTER;
 
     void sendCommand(uint8_t command);
     uint8_t readRegister(uint8_t reg);
@@ -45,6 +51,13 @@ class ADS1260 {
     // Protection Commands
     void registerLock(void);
     void registerUnlock(void);
+
+    // Specific metods
+    float computeVolts(uint32_t value);
+    void connectMUX(uint8_t p_pin, uint8_t n_pin);
+    uint32_t readConversion(void);
+    // void config1(void);
+    // uint32_t readData(void);
 
 };
 

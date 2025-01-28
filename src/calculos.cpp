@@ -9,6 +9,38 @@ float x[3] = {0.0, 0.0, 0.0};     // Últimos valores de entrada
 float y[3] = {0.0, 0.0, 0.0};     // Últimos valores de salida
 
 /************************************************************************************************************
+ * @fn      sliding_moving_average
+ * @brief   
+ * @param   
+ * @return  
+ * TODO: - 
+ */
+void sliding_moving_average(float* input, uint16_t N, uint8_t M, float* output) {
+  float accumulator = 0.0;
+  uint8_t aux = (uint8_t)((M - 1) / 2);
+
+  // Para las primeras aux+1 muestras
+  for ( uint8_t i = 0; i < M; i++ ) {
+    accumulator += input[i];
+    if ( i >= aux ) {
+      output[i - aux] = accumulator / (i + 1);
+    }
+  }
+
+  // Para el resto de las muestras (ventanas deslizantes completas)
+  for ( uint8_t i = M - aux; i < N - aux; i++ ) {
+    accumulator += input[i + aux] - input[i - aux - 1];  // Actualiza el acumulador
+    output[i] = accumulator / M;  // Calcula el promedio
+  }
+
+  // Para los últimos valores
+  for ( uint8_t i = N - aux; i < N; i++ ) {
+    accumulator -= input[i - aux - 1];  // restar el valor sobrante
+    output[i] = accumulator / (N - i + aux);  // Promedio con los valores restantes
+  }
+}
+
+/************************************************************************************************************
  * @fn      init_butterworth
  * @brief   
  * @param   
@@ -42,7 +74,7 @@ void init_butterworth(void) {
  * @param   
  * @return  
  */
-float* apply_butterworth(float *input, uint8_t Elementos) {
+float* apply_butterworth(float *input, uint16_t Elementos) {
   // Crear un nuevo arreglo para almacenar la salida filtrada
   float *filtered_output = (float*)malloc(Elementos * sizeof(float));
   if (filtered_output == NULL) {
@@ -90,7 +122,7 @@ float* apply_butterworth(float *input, uint8_t Elementos) {
  * @param   Temperature: obtenido del sensor TMP100 para la estimación teorica
  * @return  ---todo
  */
-float obtain_Vbd(float *inverseCurrent_I, float *inverseVoltage, uint8_t Elementos) {
+float obtain_Vbd(float *inverseCurrent_I, float *inverseVoltage, uint16_t Elementos) {
   float logarithmicCurrent[Elementos];
   float derivative[Elementos];
   float inverseDerivative[Elementos];

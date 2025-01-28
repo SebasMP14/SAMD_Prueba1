@@ -12,51 +12,97 @@
  * 
  */
 
+//// Obtencion de puntos de la curva IV ////
+////////////////////////////////////////////////////////////////////////////////////////////////
 #include <Arduino.h>
-#include "ads1260_driver.h"
-#include "hardware_pins.h"
 #include <SPI.h>
 
-// ADS1260 ads1260(&SPI1, SPI_CS_ADC);
+#include "hardware_pins.h"
+#include "ads1260_driver.h"
+#include "max1932_driver.h"
+#include "dac8551_driver.h"
+#include "tmp100_driver.h"
+#include "calculos.h"
+
+#define DEBUG_MAIN
+#define MAX_ITER 10
+#define Elementos 400                     // Cantidad de muestras
+#define OverVoltage 1                     // Sobrevoltaje aplicado para la polarización de los SiPMs
+#define Switching_Time_MAX 4              // Microseconds
+
+float inverseVoltage[Elementos];          // Tensión inversa aplicada al SiPM para obtener "inverseCurrent_I"
+uint16_t inverseVoltage_command[Elementos];
+float inverseVCurrent[Elementos];        // Corriente inversa, convertida de "inverseCurrent_V[]"
+float Filtered_voltage[Elementos];
+float Filtered_current[Elementos];
+float temperatureArray [Elementos];
+
+ADS1260 ads1260(&SPI1, SPI_CS_ADC);
+
+unsigned long time_ini;
+float temperature = 0.0;
+float firstCurrent = 0.0;
+
+void obtain_Curve_inverseVI(float Temperature);
 
 void setup() {
-  delay(4000);
+  delay(5000);
 
   Serial.begin(115200);
-  Serial.println("HOLA MUNDO PLACA FINAL V1...");
-
-  pinMode(INTERFACE_EN, OUTPUT);
-  digitalWrite(INTERFACE_EN, HIGH);
-
-  // ads1260.begin();
-
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-
-  // ads1260.noOperation();
-  // ads1260.reset();
-  // ads1260.noOperation();
-
-  Serial.println("Setup finalizado...");
-
-  pinMode(SPI_CS_ADC, OUTPUT);
-  digitalWrite(SPI_CS_ADC, HIGH);
-
-  SPI1.begin();
-  SPI1.beginTransaction( SPISettings(SPI_CLK_SPEED, MSBFIRST, SPI_MODE0) );
-
-  digitalWrite(SPI_CS_ADC, LOW);
-  uint8_t response1 = SPI1.transfer(0x00);
-  uint8_t response2 = SPI1.transfer(0x00);
-  digitalWrite(SPI_CS_ADC, HIGH);
-
-  SPI1.endTransaction();
-
-  Serial.print("DEBUG (sendCommand) -> response1: 0x");
-  Serial.print(response1, HEX);
-  Serial.print(", response2: 0x");
-  Serial.println(response2, HEX);
+  Serial.println("Serial iniciado");
   
+  pinMode(SPI_CS_DAC2, OUTPUT);
+  pinMode(SPI_CS_MAX2, OUTPUT);
+  pinMode(INTERFACE_EN, OUTPUT); // 
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_SiPM1, OUTPUT);
+  pinMode(LED_SiPM2, OUTPUT);
+
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(LED_SiPM1, LOW);
+  digitalWrite(LED_SiPM2, LOW);
+  digitalWrite(INTERFACE_EN, HIGH); //
+  delay(START_UP_TIME_ADS);                                       // Habilitación del ADC
+  delay(1000);
+
+  SPI.begin();                                                    // Descomentado en start_dac8551 y start_max1932
+  Serial.println("SPI iniciado");
+  start_dac8551(SPI_CS_DAC2);                                     // Solo el canal N
+  digitalWrite(SPI_CS_DAC1, HIGH);
+  start_max1932(SPI_CS_MAX2);
+  digitalWrite(SPI_CS_MAX1, HIGH);
+  Serial.println("CSs en HIGH");
+  if ( start_tmp100() ) {
+    Serial.println("TMP iniciado");
+  }
+  Serial.println((float)read_tmp100(), 4);
+  
+
+  // ADC Configuration
+  ads1260.begin();
+  Serial.print("MODE0: ");
+  Serial.println(ads1260.readRegisterData(ADS1260_MODE0), BIN);   // 00100100
+  ads1260.writeRegisterData(ADS1260_MODE0, 0b11111100);           // 40 KSPS - FIR (Page 30)
+  // ads1260.writeRegisterData(ADS1260_MODE0, 0b01101100);           // 14400 SPS
+  delay(50);
+  Serial.print("MODE0: ");
+  Serial.println(ads1260.readRegisterData(ADS1260_MODE0), BIN);   
+  Serial.print("PGA: ");
+  Serial.println(ads1260.readRegisterData(ADS1260_PGA), BIN);
+  ads1260.writeRegisterData(ADS1260_PGA, 0b10000000);             // BYPASS MODE
+  Serial.print("PGA BYPASS MODE: ");
+  Serial.println(ads1260.readRegisterData(ADS1260_PGA), BIN);
+  ads1260.writeRegisterData(ADS1260_MODE3, 0b01000000);           // STATENB
+  // ads1260.writeRegisterData(ADS1260_REF, 0b00010000);             // REF 2.498V ENABLE
+  
+  delay(500);
+  // Inicializar Vout1
+  write_dac8551_reg(0x7FFF, SPI_CS_DAC2);
+  write_max_reg(0x01, SPI_CS_MAX2);
+
+  time_ini = millis();
+  Serial.println("Setup finalizado");
+  // while(1);
 }
 
 void loop() {
@@ -64,7 +110,234 @@ void loop() {
   digitalWrite(LED_BUILTIN, HIGH);
   delay(500);
   digitalWrite(LED_BUILTIN, LOW);
+
+  if ( millis() - time_ini >= 3000 ) {
+    Serial.println("Datos obtenidos: ");
+    Serial.print("Temperatura: ");
+
+    temperature = read_tmp100();
+    Serial.println(temperature, 4);
+    Serial.println("Obtención de curva ");
+    // delay(5000);
+    obtain_Curve_inverseVI(temperature);
+
+    time_ini = millis();
+    Serial.println("i, Voltage, VCorriente, (Voltage*12)-3.8, (VCorriente-firstCurrent)/2000");
+    for ( uint16_t i = 1; i < Elementos; i++ ) {
+      Serial.print(i);
+      Serial.print(",");
+      Serial.print(inverseVoltage[i], 7);
+      Serial.print(",");
+      Serial.print(inverseVCurrent[i], 7);
+      Serial.print(",");
+      Serial.print(temperatureArray[i]);
+      Serial.print(",");
+      Serial.print((inverseVoltage[i]*12)-3.8, 7);
+      Serial.print(",");
+      Serial.println((inverseVCurrent[i]-firstCurrent)/2000, 10);
+    }
+    // Serial.print("Breakdown Voltage sin filtrar: ");
+    // Serial.println((obtain_Vbd(inverseVCurrent, inverseVoltage, Elementos) * 12) - 3.8, 6);
+    sliding_moving_average(inverseVoltage, Elementos, 5, Filtered_voltage);
+    sliding_moving_average(inverseVCurrent, Elementos, 5, Filtered_current);
+    Serial.print("Voltage y Corriente Filtrados empieza en 5 seg");
+    delay(5000);
+    for ( uint16_t i = 0; i < Elementos; i++ ) {
+      Serial.print(i);
+      Serial.println(",");
+      Serial.print(Filtered_voltage[i], 6);
+      Serial.print(",");
+      Serial.println(Filtered_current[i], 6);
+    }
+    // Serial.print("Breakdown Voltage Filtrado: ");
+    // Serial.println((obtain_Vbd(Filtered_current, Filtered_voltage, Elementos) * 12) - 3.8, 6);
+  }
+  
 }
+
+/************************************************************************************************************
+ * @fn      obtain_Curve_inverseVI
+ * @brief   Se obtiene la curva I-V inversa del SiPM aplicando un filtro de butterworth a las lecturas del
+ *          ADC.
+ * @param   Temperature: obtenido del sensor TMP100 para la estimación teorica
+ * @return  ---todo
+ * TODO: - Se necesita un algoritmo para setear el Vbias correctamente
+ * 
+ */
+void obtain_Curve_inverseVI(float Temperature) {
+  float Vbd_Teo = Vbd_teorical(Temperature);
+  #ifdef DEBUG_MAIN
+  Serial.print("Vbd teorico: ");
+  Serial.println(Vbd_Teo);
+  #endif
+  // float Vlimite_inferior = max(24.588, Vbd_Teo - 2);      // 24.588 es el minimo valor a la salida del MAX
+  // float Vlimite_superior = min(36, Vbd_Teo + 2);      // 36 es el máximo valor a la salida del MAX
+  uint16_t Vlim_sup = 0x3000;//VDAC_command(Vlimite_inferior); // Comandos 
+  uint16_t Vlim_inf = 0x7FFF;//VDAC_command(Vlimite_superior); // Comandos 
+  uint16_t paso = (uint16_t)(Vlim_inf - Vlim_sup) / Elementos;
+  unsigned long start_time, total_time;
+
+  #ifdef DEBUG_MAIN
+  Serial.print("Limites (dec, hex): ");
+  Serial.print(out_voltage(Vlim_inf), 2);
+  Serial.print(", ");
+  Serial.print(out_voltage(Vlim_sup), 2);
+  Serial.print(", ");
+  Serial.print(Vlim_inf, HEX);
+  Serial.print(", ");
+  Serial.print(Vlim_sup, HEX);
+  Serial.print(", paso: ");
+  Serial.println(paso);
+  #endif
+
+  for ( uint16_t i = 0; i < Elementos; i++ ) {          // Comandos para el DAC
+    inverseVoltage_command[i] = Vlim_inf - i * paso;
+  }
+  Serial.println("Comandos calculados");
+  start_time = micros();
+  for ( uint16_t i = 0; i < Elementos; i++ ) {
+    // if (i % 100 == 0 && i != 0) {
+    //   Serial.println("DEBUG (obtain_Curve_inverseVI) -> waiting");
+    //   // delay(5000);
+    // }
+    write_dac8551_reg(inverseVoltage_command[i], SPI_CS_DAC2);
+    // delayMicroseconds(Switching_Time_MAX); // 4 microseconds
+    delay(10); // Settling time of the MAX
+    // Aquí se debe validar la tensión seteada en la salida del max con el ADC
+    inverseVoltage[i] = ads1260.computeVolts(ads1260.readData(ADS1260_MUXP_AIN1, ADS1260_MUXN_AINCOM));
+    inverseVCurrent[i] = ads1260.computeVolts(ads1260.readData(ADS1260_MUXP_AIN3, ADS1260_MUXN_AINCOM));
+    temperatureArray[i] = read_tmp100();
+    // uint32_t aux = 0x00;
+    // ads1260.connectMUX(ADS1260_MUXP_AIN0, ADS1260_MUXN_AINCOM);
+    // for ( uint8_t j = 0; j < 10; j++ ) {
+    //   aux += ads1260.readConversion();
+    //   delayMicroseconds(100);
+    // }
+    // inverseVoltage[i] = ads1260.computeVolts((uint32_t)(aux/10));
+    // aux = 0x00;
+    // ads1260.connectMUX(ADS1260_MUXP_AIN3, ADS1260_MUXN_AINCOM);
+    // for ( uint8_t j = 0; j < 10; j++ ) {
+    //   aux += ads1260.readConversion();
+    //   delayMicroseconds(100);
+    // }
+    // inverseVCurrent[i] = ads1260.computeVolts((uint32_t)(aux/10));
+  }
+  total_time = micros() - start_time;
+  firstCurrent = inverseVCurrent[0];
+  Serial.print("First VCurrent: ");
+  Serial.println(firstCurrent, 7);
+  Serial.print("Tiempo promedio de muestreo [ms]: ");
+  float Ts = (float)total_time / (Elementos * 1000);
+  Serial.println(Ts, 3);
+}
+
+
+//////// Pruebas ADS1260
+////////////////////////////////////////////////////////////////////
+// #include <Arduino.h>
+// #include "ads1260_driver.h"
+// #include "hardware_pins.h"
+// #include <SPI.h>
+
+// ADS1260 ads1260(&SPI1, SPI_CS_ADC);
+
+// void setup() {
+//   delay(4000);
+
+//   Serial.begin(115200);
+//   Serial.println("PLACA FINAL V1...");
+
+//   pinMode(INTERFACE_EN, OUTPUT); // 
+//   digitalWrite(INTERFACE_EN, HIGH); // 
+//   delay(START_UP_TIME_ADS); // Habilitación del ADC
+
+//   ads1260.begin();
+
+//   pinMode(LED_BUILTIN, OUTPUT);
+//   digitalWrite(LED_BUILTIN, LOW);
+
+//   ads1260.noOperation();
+
+//   Serial.println("Setup finalizado...");
+
+//   Serial.print("ID: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_ID), BIN);      // 10100001
+//   Serial.print("STATUS: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_STATUS), BIN);  // 00000101
+//   Serial.print("MODE0: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_MODE0), BIN);   // 00100100
+//   ads1260.writeRegisterData(ADS1260_MODE0, 0b11111100); // 40 KSPS - FIR (Page 30)
+//   delay(50);
+//   Serial.print("MODE0: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_MODE0), BIN);   // 11111100
+//   Serial.print("MODE1: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_MODE1), BIN);   // 00000001
+//   Serial.print("MODE2: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_MODE2), BIN);   // 0
+//   Serial.print("MODE3: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_MODE3), BIN);   // 0
+//   Serial.print("REF: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_REF), BIN);     // 00000101
+//   Serial.print("PGA: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_PGA), BIN);     // 0
+//   Serial.print("INPMUX: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_INPMUX), BIN);  // 11111111
+//   Serial.print("INPBIAS: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_INPBIAS), BIN); // 0
+
+//   ads1260.writeRegisterData(ADS1260_PGA, 0b10000000);
+//   Serial.print("PGA: ");
+//   Serial.println(ads1260.readRegisterData(ADS1260_PGA), BIN);
+
+//   uint32_t offsetCal = (ads1260.readRegisterData(ADS1260_OFCAL2) << 16) |
+//                      (ads1260.readRegisterData(ADS1260_OFCAL1) << 8) |
+//                       ads1260.readRegisterData(ADS1260_OFCAL0);
+
+//   uint32_t fullScaleCal = (ads1260.readRegisterData(ADS1260_FSCAL2) << 16) |
+//                           (ads1260.readRegisterData(ADS1260_FSCAL1) << 8) |
+//                           ads1260.readRegisterData(ADS1260_FSCAL0);
+
+//   Serial.print("Offset Calibration: 0x");
+//   Serial.println(offsetCal, HEX);
+//   Serial.print("Full-Scale Calibration: 0x");
+//   Serial.println(fullScaleCal, HEX);
+
+//   ads1260.writeRegisterData(ADS1260_MODE3, 0b01000000); // STATENB
+
+//   // ads1260.selfOffsetCalibration();
+//   // offsetCal = (ads1260.readRegisterData(ADS1260_OFCAL2) << 16) |
+//   //                    (ads1260.readRegisterData(ADS1260_OFCAL1) << 8) |
+//   //                     ads1260.readRegisterData(ADS1260_OFCAL0);
+//   // Serial.print("Offset Calibration: 0x");
+//   // Serial.println(offsetCal, HEX);
+
+//   ads1260.writeRegisterData(ADS1260_REF, 0b00010000);
+// }
+
+// void loop() {
+//   delay(500);
+//   digitalWrite(LED_BUILTIN, HIGH);
+//   delay(500);
+//   digitalWrite(LED_BUILTIN, LOW);
+
+//   uint32_t value = ads1260.readData(ADS1260_MUXP_AIN3, ADS1260_MUXN_AINCOM);
+//   int32_t signedValue = value;
+//   if (signedValue & 0x800000) { // Verifica si el valor es negativo
+//     signedValue |= 0xFF000000; // Extiende el signo
+//   }
+//   float converted1 = (signedValue * 2.498) / 8388607.0; // /-1+2^23
+//   float converted2 = (value * 5.155) / 8388607.0;       // /-1+2^23
+//   Serial.print("Valor hex, voltage: 0x");
+//   Serial.print(value, HEX);
+//   Serial.print(", ");
+//   Serial.print(converted1, 7);
+//   Serial.print(", ");
+//   Serial.println(converted2, 7);
+
+//   Serial.println(ads1260.readRegisterData(ADS1260_STATUS), BIN);
+//   delay(1000);
+
+// }
 
 // #include <Arduino.h>
 
@@ -358,7 +631,7 @@ void loop() {
 //   Serial.print(",");
 // }
 
-//// Obtencion de puntos de la curva IV ////
+//// Obtencion de puntos de la curva IV (Primeras pruebas) ////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // #include <Arduino.h>
 // // #include <SPI.h>
@@ -535,88 +808,6 @@ void loop() {
 //   Fs = 1 / Ts;
 //   Fc = 0.1 * Fs / 2;  
 // }
-
-
-
-
-
-
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-
-
-void setup() {
-  delay(4000);
-  Serial.begin(115200);                                 // Open the serial port at 115200 baud
-  while(!Serial);                                       // Wait for the console to open
-  Serial.println("Pulse Measurement");   // print out the file name
-  delay(2000);
-
-  MCLK->APBBMASK.reg |= MCLK_APBBMASK_EVSYS;         // Switch on the event system peripheral
-  
-  // Set up the generic clock (GCLK7) used to clock timers 
-  GCLK->GENCTRL[7].reg = GCLK_GENCTRL_DIV(1) |       // Divide the 120MHz clock source by divisor 1: 120MHz/1 = 120MHz
-                         GCLK_GENCTRL_IDC |          // Set the duty cycle to 50/50 HIGH/LOW
-                         GCLK_GENCTRL_GENEN |        // Enable GCLK7
-                         //GCLK_GENCTRL_SRC_DFLL;    // Generate from 48MHz DFLL clock source
-                         GCLK_GENCTRL_SRC_DPLL0;     // Generate from 120MHz DPLL clock source
-                         //GCLK_GENCTRL_SRC_DFLL1;   // Generate from 100MHz DPLL clock source
-  while (GCLK->SYNCBUSY.bit.GENCTRL7);               // Wait for synchronization
-  
-  GCLK->PCHCTRL[TC4_GCLK_ID].reg = GCLK_PCHCTRL_CHEN |         // Enable perhipheral TC0
-                                   GCLK_PCHCTRL_GEN_GCLK7;     // Connect  120MHz generic clock 7 to TC0
-  // GCLK->PCHCTRL[TC4_GCLK_ID].reg = GCLK_PCHCTRL_CHEN |         // Enable perhipheral TC4
-  //                                  GCLK_PCHCTRL_GEN_GCLK0;     // Connect  120MHz generic clock 0 to TC4
-
-  TC4->COUNT16.CTRLA.reg = TC_CTRLA_SWRST;  // Resetear TC4
-  while (TC4->COUNT16.SYNCBUSY.bit.SWRST);
-                                   
-  //----------------------------------------------------------------------------------------------------------------------
-  //======================================== setup pulsewidth measurment on TC4 input on pion PB08
-  //----------------------------------------------------------------------------------------------------------------------
-
-  // Enable the port multiplexer on analog pin PB08
-  PORT->Group[g_APinDescription[4].ulPort].PINCFG[g_APinDescription[4].ulPin].bit.PMUXEN = 1;
-
-  // Set-up the pin as an EIC (interrupt) peripheral on analog pin PB08
-  PORT->Group[g_APinDescription[4].ulPort].PMUX[g_APinDescription[4].ulPin >> 1].reg |= PORT_PMUX_PMUXE(0x05);
-
-  EIC->CTRLA.bit.ENABLE = 0;                        // Disable the EIC peripheral
-  while (EIC->SYNCBUSY.bit.ENABLE);                 // Wait for synchronization 
-  EIC->CONFIG[0].reg = EIC_CONFIG_SENSE4_HIGH;      // Set event on detecting a HIGH level
-  EIC->EVCTRL.reg = 1 << 8;                         // Enable event output on external interrupt 8 
-  EIC->INTENCLR.reg = 1 << 8;                       // Clear interrupt on external interrupt 8
-  EIC->ASYNCH.reg = 1 << 8;                         // Set-up interrupt as asynchronous input
-  EIC->CTRLA.bit.ENABLE = 1;                        // Enable the EIC peripheral
-  while (EIC->SYNCBUSY.bit.ENABLE);                 // Wait for synchronization
- 
-  // Select the event system user on channel 0 (USER number = channel number + 1)
-  EVSYS->USER[EVSYS_ID_USER_TC4_EVU].reg = EVSYS_USER_CHANNEL(1);                   // Set the event user (receiver) as timer TC4
-
-  // Select the event system generator on channel 0
-  EVSYS->Channel[0].CHANNEL.reg = EVSYS_CHANNEL_EDGSEL_NO_EVT_OUTPUT |              // No event edge detection
-                                  EVSYS_CHANNEL_PATH_ASYNCHRONOUS |                 // Set event path as asynchronous
-                                  EVSYS_CHANNEL_EVGEN(EVSYS_ID_GEN_EIC_EXTINT_8);   // Set event generator (sender) as external interrupt 8
-  
-  TC4->COUNT16.EVCTRL.reg = TC_EVCTRL_TCEI |               	// Enable the TCC event input 
-                            TC_EVCTRL_EVACT_PPW;            	// Set up the timer for capture: CC0 period, CC1 pulsewidth
-
-  NVIC_SetPriority(TC4_IRQn, 0);      			// Set the Nested Vector Interrupt Controller (NVIC) priority for TC4 to 0 (highest)
-  NVIC_EnableIRQ(TC4_IRQn);           			// Connect the TC4 timer to the Nested Vector Interrupt Controller (NVIC)
-
-  TC4->COUNT16.INTENSET.reg = TC_INTENSET_MC1;		// Enable compare channel 1 (CC1) interrupts (pulsewidth)
-  TC4->COUNT16.CTRLA.reg |= TC_CTRLA_CAPTEN1;			// Enable pulse capture on CC1 (pulsewidth)
-  TC4->COUNT16.CTRLA.reg |= TC_CTRLA_MODE_COUNT16;		// Set the timer to 16-bit mode
-  
-  TC4->COUNT16.CTRLA.bit.ENABLE = 1;                        	// Enable the TC4 timer
-  while (TC4->COUNT16.SYNCBUSY.bit.ENABLE);                 	// Wait for synchronization
-   
-}
-
-*/
 
 //////////////////////////////////////
   // digitalWrite(P, LOW);
