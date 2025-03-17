@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <math.h>
 #include <float.h>
+#include <cmath>
+#include <cfloat>
 
 #include "max1932_driver.h"
 

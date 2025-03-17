@@ -16,7 +16,8 @@
 			"sam.h": "c",
 			"qspi.h": "c",
 			"ctgmath": "cpp",
-			"cmath": "cpp"
+			"cmath": "cpp",
+			"cfloat": "cpp"
 		}
 	}
 }

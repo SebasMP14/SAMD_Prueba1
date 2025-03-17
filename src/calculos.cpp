@@ -28,13 +28,13 @@ void sliding_moving_average(float* input, uint16_t N, uint8_t M, float* output) 
   }
 
   // Para el resto de las muestras (ventanas deslizantes completas)
-  for ( uint8_t i = M - aux; i < N - aux; i++ ) {
+  for ( uint16_t i = M - aux; i < N - aux; i++ ) {
     accumulator += input[i + aux] - input[i - aux - 1];  // Actualiza el acumulador
     output[i] = accumulator / M;  // Calcula el promedio
   }
 
   // Para los últimos valores
-  for ( uint8_t i = N - aux; i < N; i++ ) {
+  for ( uint16_t i = N - aux; i < N; i++ ) {
     accumulator -= input[i - aux - 1];  // restar el valor sobrante
     output[i] = accumulator / (N - i + aux);  // Promedio con los valores restantes
   }
