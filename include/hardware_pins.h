@@ -6,8 +6,8 @@
 #ifndef HARDWARE_PINS_H
 #define HARDWARE_PINS_H
 
-// #define PLACA_PRUEBAS
-#define PLACA_FINAL
+#define PLACA_PRUEBAS
+// #define PLACA_FINAL
 
 /////// Sebas_MUA_Control_Dev
 #ifdef PLACA_PRUEBAS
@@ -20,7 +20,7 @@
 #define SPI_MOSI_MAX    PIN_SPI_MOSI        // PA04 sercom0_0
 #define SPI_MISO_MAX    PIN_SPI_MISO        // PA06 sercom0_2
 #define SPI_SCK_MAX     PIN_SPI_SCK         // PA05 sercom0_1
-#define Interface_EN    D11                 // PB15
+#define Interface_EN    39                  // PB15
 
 #define QSPI_D0         PIN_QSPI_D0         // PA08     Revisar si se puede QSPI
 #define QSPI_D1         PIN_QSPI_D1         // PA09
@@ -45,6 +45,7 @@
 #define PB07        D3
 #define PB08        D4
 #define PB09        D5
+#define PA01        PIN_ATN
 #endif
 
 #ifdef PLACA_FINAL

@@ -9,133 +9,46 @@
  * - Sebas Monje <2024-2025> (github)
  * 
  * TODO:
- * 
+ * pio device monitor -p COM17
  */
-#include <Arduino.h>
 
-#include "hardware_pins.h"
-#include "flash_driver.h"
-#include "interrupts.h"
-// #include ""
-
-void setup() {
-  delay(6000);
-
-  Serial.begin(115200);                 // Puerto USB
-  Serial.println("DEBUG (setup) -> Serial Iniciado");
-
-  pinMode(INTERFACE_EN, OUTPUT);
-  digitalWrite(INTERFACE_EN, LOW);
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, HIGH);
-
-  activeInterrupt2();
-
-  /* Inicialización de memoria Flash */
-  if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
-    // break;
-    Serial.println("DEBUG (setup) -> Flash con problemss");
-  }
-  delay(2000);
-
-  if (erase_all()) {
-    Serial.print("comando de borrado enviado, status: 0b");
-    Serial.println(Flash_QSPI.readStatus(), BIN);
-    // Flash_QSPI
-  } else {
-    Serial.println("error, no se completó el borrado");
-  }
-  uint8_t escribir[5] = {0x01, 0xA3, 0xF5, 0x12, 0x14};
-  write_mem(escribir, 5);
-  uint16_t len = 200;
-  uint8_t leer[len] = {};
-  read_until(leer, len);
-  for (uint8_t i = 0; i < len; i++) {
-    Serial.print(" 0x");
-    Serial.print(leer[i], HEX);
-  }
-  Serial.println();
-  delay(1000);
-  // read_all();
-
-  while(1) {
-    delay(500);
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(500);
-    digitalWrite(LED_BUILTIN, LOW);
-  }
-}
-
-void loop() {
-
-}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// SIMULACION OBC
-/*
+
 #include <Arduino.h>
 
 #include "hardware_pins.h"
 #include "RTC_SAMD51.h"
 #include "DateTime.h"
 #include "power_manager.h"
+#include "flash_driver.h"
+#include "obc_comm.h"
 
 #define DEBUG_MAIN
-#define TRAMA_SIZE 44
-#define TRAMA_COMM 6
-#define STOP_BYTE  0x0A
 
 unsigned long date;
-bool state = false;
+
 bool state_recibir = false;
+unsigned long tiempo = 0;
+ 
 uint32_t Time;
-uint8_t MISSION_ID            = 0x26;
-uint8_t ID_COUNT_MODE         = 0x01;
 uint8_t ID_TRANSFER_DATA_MODE = 0x02;
 uint8_t ACK_OBC_TO_MUA        = 0x04;
-uint8_t ACK_MUA_TO_OBC        = 0x07; // ACK MUA to OBC
 
-const uint16_t crc_table[256] = {
-  0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
-  0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
-  0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
-  0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
-  0x2462, 0x3443, 0x0420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485,
-  0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
-  0x3653, 0x2672, 0x1611, 0x0630, 0x76d7, 0x66f6, 0x5695, 0x46b4,
-  0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
-  0x48c4, 0x58e5, 0x6886, 0x78a7, 0x0840, 0x1861, 0x2802, 0x3823,
-  0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
-  0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0x0a50, 0x3a33, 0x2a12,
-  0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
-  0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0x0c60, 0x1c41,
-  0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
-  0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0x0e70,
-  0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
-  0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f,
-  0x1080, 0x00a1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
-  0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e,
-  0x02b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
-  0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d,
-  0x34e2, 0x24c3, 0x14a0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-  0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c,
-  0x26d3, 0x36f2, 0x0691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
-  0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab,
-  0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x08e1, 0x3882, 0x28a3,
-  0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a,
-  0x4a75, 0x5a54, 0x6a37, 0x7a16, 0x0af1, 0x1ad0, 0x2ab3, 0x3a92,
-  0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9,
-  0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
-  0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
-  0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0
-};
-
-RTC_SAMD51 rtc;
-
+bool slidingWindowBuffer(uint8_t* buffer);
+bool buildDataFrame(uint8_t* trama, uint8_t ID, uint8_t trama_size, uint32_t address);
+bool verifyOBCResponse(uint8_t* recibido);
+bool sendDataFrame(void);
 uint16_t crc_calculate(uint8_t *data);
 
+// #define OBC_SIMULATION
+#define MUA_SIMULATION
+
+#ifdef OBC_SIMULATION
+bool state = false;
 void setup() {
-  delay(4000);
+  delay(6000);
 
   Serial.begin(115200);
   Serial.println("Serial iniciado");
@@ -205,10 +118,18 @@ void loop() {
     }
     Serial.println();
 
-    while ( Serial1.available() < TRAMA_COMM );
+    while ( millis() - Time < 10000 ) {
+      if ( Serial1.available() >= TRAMA_COMM ) {
+        break;
+      }
+    }
+    if ( Serial1.available() < TRAMA_COMM ) {
+      Time = millis();
+      return ;
+    }
     while ( Serial2.available() ) {
       Serial2.read();
-    }    
+    }
     Serial1.readBytes(recibido, TRAMA_COMM);
     Serial.print("Recibido de Serial1: 0x");
     for (uint8_t i = 0; i < TRAMA_COMM; i++) {
@@ -266,7 +187,7 @@ void loop() {
     Time = millis();
   }
 
-  if ( millis() - Time > 40000 && state ) { // Establecer TRANSFER MODE
+  if ( millis() - Time > 30000 && state ) { // Establecer TRANSFER MODE
     Serial.println("Preparando para establecer TRANSFER MODE");
     
     uint8_t recibido[TRAMA_COMM];
@@ -311,7 +232,7 @@ void loop() {
   }
 
   if ( state_recibir ) {
-    uint8_t trama_size = 36;
+    uint8_t trama_size = 42;
     uint8_t recibido[trama_size];
     uint8_t enviar[TRAMA_COMM] = {0x26, ACK_OBC_TO_MUA, 0x00};
     uint16_t CRC;
@@ -332,7 +253,8 @@ void loop() {
     Serial.println(CRC, HEX);
     uint16_t CRC_MUA = (recibido[trama_size-3] << 8) | recibido[trama_size-2];
     if ( CRC == CRC_MUA && recibido[0] == 0x26) {
-      // state = true;
+      state = false;
+      state_recibir = false;
       Serial.println("Datos recibidos correctamente");
       Serial.print(" CRC calculado: 0x");
       CRC = crc_calculate(enviar);
@@ -352,31 +274,482 @@ void loop() {
   }
   delay(1000);
 }
+#endif
 
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef MUA_SIMULATION
+uint8_t state = 0x00;
 
-**
- * @fn                crc_calculate
- * @brief             Calculate the crc16 value
- * @param[in] data    Pointer to a buffer of up to 45 data_len bytes.
- * @return            The calculated crc value.
- *
-uint16_t crc_calculate(uint8_t *data) {
-  uint16_t crc = 0x1d0f;     //initial crc value
-  uint16_t tbl_idx;
-  
-  // get the amount of appended data according to Data size
-  uint8_t data_len = data[2];
-  
-  // operate only over data[1:data_len] to calculate the checksum 
-  for ( uint8_t i = 1; i <= data_len + 2; i++ ) {
-    tbl_idx = (((crc >> 8) ^ (*(data + i))) & 0xFF);
-    crc = (crc_table[tbl_idx] ^ (crc << 8)) & 0xFFFF;
+void setupCOUNT(void);
+void loopCOUNT(void);
+void setupTRANSFER(void);
+void loopTRANSFER(void);
+void loopTRANSFERinfo(void);
+
+void setup() {
+  delay(6000);
+
+  Serial.begin(115200);                 // Puerto USB
+  #ifdef DEBUG_MAIN
+  Serial.println("DEBUG (setup) -> Serial Iniciado");
+  #endif
+
+  // Serial.println("PRUEBA DE FLUJO DE PARTICULAS COMPENSANDO EL VBD, ambos canales");
+
+  Serial1.begin(115200);                // OBC (On Board Computer)
+  #ifdef DEBUG_MAIN
+  Serial.println("DEBUG (setup) -> Serial1 Iniciado");
+  #endif
+
+  // /* Inicialización de memoria Flash */
+  if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
+    // break;
+    #ifdef DEBUG_MAIN
+    Serial.println("DEBUG (setup) -> Flash con problemss");
+    #endif
   }
-  
-  return (crc & 0xFFFF);
+
+  // if ( erase_debug() ) {
+  //   #ifdef DEBUG_MAIN
+  //   Serial.println("DEBUG (setup) -> debug borrado");
+  //   #endif
+  // } else {
+  //   #ifdef DEBUG_MAIN
+  //   Serial.println("DEBUG (setup) -> No se pudo borrar debug");
+  //   #endif
+  // }
+
+  // if ( erase_all() ) {
+  //   Serial.println("Flash borrada");
+  // }
+
+  // Restaurar último estado guardado en memoria
+  // get_OPstate(&state);
+
+
+  pinMode(PA01, OUTPUT);                            // Salida para TC2 (utiliza también PA15)
+
+  Serial.print("Estado: 0x");
+  Serial.println(state, HEX);
+
+  switch ( state ) {
+    case 0x00:                                // STAND_BY
+    case 0xFF:
+      currentMode = STAND_BY;
+      requestOperationMode();                 // Espera del modo de operación
+      if ( currentMode == COUNT_MODE ) {
+        setupCOUNT();
+      } else if ( currentMode == TRANSFER_DATA_MODE ) {
+        setupTRANSFER();
+      } else if ( currentMode == TRANSFER_INFO_MODE ) {
+        setupTRANSFER();
+      }
+      break;
+
+    case 0x01:                                // COUNT_MODE
+      currentMode = COUNT_MODE;
+      #ifdef DEBUG_MAIN
+      Serial.println("DEBUG (setup) -> COUNT_MODE iniciado");
+      #endif
+      setupCOUNT();
+      break;
+
+    case 0x02:                                // TRANSFER_DATA_MODE
+      currentMode = TRANSFER_DATA_MODE;
+      setupTRANSFER();
+      break;
+    
+    case 0x08:
+      currentMode = FINISH;
+      enterOffMode();
+      break;
+
+    case 0x09:                                // TRANSFER_DATA_MODE
+      currentMode = TRANSFER_INFO_MODE;
+      setupTRANSFER();
+      break;
+
+    default:
+      /* Modo no seleccionado o incorrecto, manejar... */
+      currentMode = STAND_BY;
+      break;
+  }
+
+  #ifdef DEBUG_MAIN
+  Serial.println("DEBUG (setup) -> Setup finalizado...");
+  #endif
+}
+
+void loop() {
+  switch ( currentMode ) {
+    case STAND_BY:
+      requestOperationMode();
+      if (currentMode == COUNT_MODE) {
+        setupCOUNT();
+      } else if (currentMode == TRANSFER_DATA_MODE) {
+        setupTRANSFER();
+      } else if (currentMode == TRANSFER_INFO_MODE) {
+        setupTRANSFER();
+      }
+      break;
+
+    case COUNT_MODE:
+      loopCOUNT();
+      if ( Serial1.available() ) {
+        requestOperationMode();
+        if (currentMode == TRANSFER_DATA_MODE) {
+          setupTRANSFER();
+        } else if (currentMode == TRANSFER_INFO_MODE) {
+          setupTRANSFER();
+        }
+      }
+      break;
+
+    case TRANSFER_DATA_MODE:
+      loopTRANSFER();
+      break;
+
+    case TRANSFER_INFO_MODE:
+      loopTRANSFERinfo();
+      break;
+    
+    case FINISH:
+      #ifdef DEBUG_MAIN
+      Serial.println("DEBUG (requestOperationMode) -> FINISH MODE ACTIVATED");
+      Serial.println("Sleep mode in progress: Executing order 66.");
+      #endif
+      write_OPstate(0x00);
+      enterOffMode();
+      break;
+
+    default:
+      #ifdef DEBUG_MAIN
+      Serial.println("DEBUG (loop) -> UNKNOWN_MODE");
+      #endif
+      delay(2000);
+      requestOperationMode();
+      // if ( !setup_state && currentMode != UNKNOWN_MODE) {
+      //   setupCOUNT();
+      // }
+      /* Modo no seleccionado o incorrecto, manejar... */
+      break;
+  }
+}
+
+void setupCOUNT() {
+  pinMode(Interface_EN, OUTPUT);
+  getTimestampFromGPS();
+  digitalWrite(Interface_EN, HIGH);
+  tiempo = millis();
+  Serial.println("setupCOUNT finalizado");
+}
+
+void loopCOUNT() {
+  if ( millis() - tiempo > 5000 ) {
+    Serial.println("loopCOUNT");
+    tiempo = millis();
+  }
+}
+
+void setupTRANSFER() {
+  digitalWrite(Interface_EN, LOW);
+  Serial.println("Datos de la FLASH: ");
+  read_all();
+  uint32_t start_address = 0x00000000;
+  write_SENT_DATAaddress(&start_address);  // Para transferir desde el inicio
+  Serial.println("setupTRANSFER finalizado");
+}
+
+void loopTRANSFER() {
+  delay(10000);
+
+  uint8_t buffer[TRAMA_COMM] = {0};
+
+  if ( slidingWindowBuffer(buffer) ) {  // Se busca y revisa una trama válida proveniente del OBC
+    if ( verifyOBCResponse(buffer) ) {  // Se verifica el CRC, si es NACK se maneja en la función
+      switch (buffer[1]) {
+        case ID_STANDBY:
+          currentMode = STAND_BY;
+          #ifdef DEBUG_MAIN
+          Serial.println("DEBUG (requestOperationMode) -> STAND_BY ACTIVATED");
+          #endif
+          write_OPstate(ID_STANDBY);
+          break;
+        case ID_COUNT_MODE:
+          currentMode = COUNT_MODE;
+          #ifdef DEBUG_MAIN
+          Serial.println("DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED");
+          #endif
+          write_OPstate(ID_COUNT_MODE);
+          break;
+        case ID_TRANSFER_MODE:
+          currentMode = TRANSFER_DATA_MODE;
+          #ifdef DEBUG_MAIN
+          Serial.println("DEBUG (requestOperationMode) -> TRANSFER MODE ACTIVATED");
+          #endif
+          write_OPstate(ID_TRANSFER_MODE);
+          break;
+        case ID_FINISH:
+          currentMode = FINISH;
+          #ifdef DEBUG_MAIN
+          Serial.println("DEBUG (requestOperationMode) -> FINISH MODE ACTIVATED");
+          Serial.println("Sleep mode in progress: Executing order 66.");
+          #endif
+          write_OPstate(ID_FINISH);
+          enterOffMode();
+          break;
+        case ID_TRANSFER_SYSINFO_MODE:
+          currentMode = TRANSFER_INFO_MODE;
+          #ifdef DEBUG_MAIN
+          Serial.println("DEBUG (requestOperationMode) -> TRANSFER SYSINFO MODE ACTIVATED");
+          #endif
+          write_OPstate(ID_TRANSFER_SYSINFO_MODE);
+          break;
+        default:
+          currentMode = STAND_BY;
+          #ifdef DEBUG_MAIN
+          Serial.println("DEBUG (requestOperationMode) -> UNKNOWN MODE");
+          #endif
+          write_OPstate(0x00);
+          break;
+      }   // switch (buffer[1])
+    }     // verifyOBCResponse
+  }       // slidingWindowBuffer
+
+  if ( !sendDataFrame() ) {            // Durante sendDataFrame se puede recibir comandos del OBC
+    #ifdef DEBUG_MAIN
+    Serial.println("DEBUG (loopTRANSFER) -> Falló el envío de trama.");
+    #endif
+    return ;
+  }
+}
+
+void loopTRANSFERinfo() {
+
+}
+
+#endif
+
+
+/************************************************************************************************************
+ * @fn      sendDataFrame
+ * @brief   Envía una trama de datos al OBC, recibe ACK o NACK y ejecuta en consecuencia
+ * @param   void
+ * @return  true: Transmisión exitosa, ACK recibido ... 
+ * @return  false: Transmisión fallida, CRC invalide, data frame invalid or timeout
+ */
+bool sendDataFrame(void) {
+  uint32_t last_address_written = 0xFFFFFFFF;
+  uint32_t last_sent_address = 0xFFFFFFFF;
+
+  if (!get_address(&last_address_written)) return false;
+  if (!get_SENT_DATAaddress(&last_sent_address)) return false;
+
+  if (last_sent_address == 0xFFFFFFFF) last_sent_address = 0x00;  // primer envío de día uno (*festeja*)
+  if (last_address_written == last_sent_address) {                // ya no quedan datos en memoria por enviar
+    #ifdef DEBUG_MAIN
+    Serial.println("DEBUG (sendDataFrame) → last_address_written == last_sent_address");
+    #endif
+    // currentMode = FINISH;
+    return true;
+  }
+
+  uint8_t trama_size = TRAMA_DATA_SIZE + TRAMA_COMM;
+  uint8_t trama[trama_size];
+  if ( !buildDataFrame(trama, ID_SENT_DATA, TRAMA_DATA_SIZE, last_sent_address) ) return false;
+
+  Serial1.write(trama, trama_size);
+
+  #ifdef DEBUG_MAIN
+  Serial.println("DEBUG (sendDataFrame) -> Trama enviada:");
+  for ( uint8_t i = 0; i < trama_size; i++ ) {
+    Serial.print(" 0x"); Serial.print(trama[i], HEX);
+  }
+  Serial.println();
+  #endif
+
+  unsigned long tiempo = millis();
+  while ( Serial1.available() < TRAMA_COMM ) {
+    if ( (millis() - tiempo) >= timeOUT ) return false;
+  }
+
+  uint8_t recibido[TRAMA_COMM];
+  Serial1.readBytes(recibido, TRAMA_COMM);
+
+  #ifdef DEBUG_MAIN
+  Serial.println("DEBUG (sendDataFrame) -> Respuesta recibida:");
+  for ( uint8_t i = 0; i < TRAMA_COMM; i++ ) {
+    Serial.print(" 0x"); Serial.print(recibido[i], HEX);
+  }
+  Serial.println();
+  #endif
+
+  if ( !verifyOBCResponse(recibido) ) return false;
+
+  if ( recibido[1] == ACK_OBC_to_MUA ) {
+    last_sent_address += TRAMA_DATA_SIZE;
+    write_SENT_DATAaddress(&last_sent_address);      // se actualiza la siguiente dirección a enviar
+  } else if (recibido[1] == ID_FINISH) {
+    currentMode = FINISH;
+  } else if (recibido[1] == ID_TRANSFER_SYSINFO_MODE) {
+    currentMode = TRANSFER_INFO_MODE;
+  }
+
+  return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+#include <Arduino.h>
+
+#include "hardware_pins.h"
+#include "flash_driver.h"
+#include "interrupts.h"
+#include "power_manager.h"
+// #include ""
+
+void setup() {
+  delay(6000);
+
+  Serial.begin(115200);                 // Puerto USB
+  Serial.println("DEBUG (setup) -> Serial Iniciado");
+
+  pinMode(INTERFACE_EN, OUTPUT);
+  digitalWrite(INTERFACE_EN, LOW);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  // activeInterrupt2();
+
+  // // Inicialización de memoria Flash 
+  // if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
+  //   // break;
+  //   Serial.println("DEBUG (setup) -> Flash con problemss");
+  // }
+  // delay(2000);
+
+  // if (erase_all()) {
+  //   Serial.print("comando de borrado enviado, status: 0b");
+  //   Serial.println(Flash_QSPI.readStatus(), BIN);
+  //   // Flash_QSPI
+  // } else {
+  //   Serial.println("error, no se completó el borrado");
+  // }
+  // uint8_t escribir[5] = {0x01, 0xA3, 0xF5, 0x12, 0x14};
+  // write_mem(escribir, 5);
+  // uint16_t len = 200;
+  // uint8_t leer[len] = {};
+  // read_until(leer, len);
+  // for (uint8_t i = 0; i < len; i++) {
+  //   Serial.print(" 0x");
+  //   Serial.print(leer[i], HEX);
+  // }
+  // Serial.println();
+  // delay(1000);
+  // // read_all();
+  uint8_t conteo = 0;
+  while(1) {
+    delay(500);
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(500);
+    digitalWrite(LED_BUILTIN, LOW);
+    conteo += 1;
+    if ( conteo == 10 ) {
+      Serial.println("Executing Order 66...");
+      enterOffMode();
+    }
+  }
+}
+
+void loop() {
+
 }
 */
+
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 
