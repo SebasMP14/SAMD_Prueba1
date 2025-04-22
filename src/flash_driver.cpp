@@ -59,14 +59,14 @@ bool get_SENT_DATAaddress(uint32_t *sent_address) {
   len_bytes = Flash_QSPI.readBuffer(LAST_ADDRESS_SENT_DIR, reinterpret_cast<uint8_t*>(sent_address), ADDRESS_SIZE);
   if ( len_bytes == 0 ) {                      /* Si existe un error en la lectura */ 
     #ifdef DEBUG_FLASH
-    Serial.println("ERROR (read_OPstate) -> Error en la lectura de la memoria FLASH.");
+    Serial.println("ERROR (get_SENT_DATAaddress) -> Error en la lectura de la memoria FLASH.");
     #endif
     return false;
   }
   #ifdef DEBUG_FLASH
-  Serial.print("DEBUG (read_SENDED_DATAaddress) -> Dirección en memoria: 0x");
-  Serial.print(LAST_ADDRESS_SENT_DIR, HEX);
-  Serial.print(" Ultima dirección enviada: 0x");
+  Serial.print("DEBUG (get_SENT_DATAaddress) -> Dirección en memoria: 0x");
+  Serial.println(LAST_ADDRESS_SENT_DIR, HEX);
+  Serial.print("DEBUG (get_SENT_DATAaddress) → Ultima dirección enviada: 0x");
   Serial.println(*sent_address, HEX);
   #endif
   return true;

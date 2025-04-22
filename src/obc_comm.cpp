@@ -219,12 +219,12 @@ unsigned long getTime(void) {
  * @return  true: trama válida recibida ... 
  * @return  false: trama inválida recibida
  */
-bool slidingWindowBuffer(uint8_t* buffer) {
+bool slidingWindowBuffer(uint8_t* buffer, unsigned long timeout) {
   static uint8_t window[6] = {0};         // Sliding window buffer
   // static uint8_t index = 0;
   unsigned long tiempo = millis();
 
-  while ( tiempo - millis() < timeOUT_window ) {
+  while ( millis() - tiempo < timeout ) {
     if ( Serial1.available() ) {
       uint8_t incoming = Serial1.read();    // new byte
       
@@ -232,6 +232,10 @@ bool slidingWindowBuffer(uint8_t* buffer) {
         window[i] = window[i + 1];
       }
       window[5] = incoming;
+      #ifdef DEBUG_OBC
+      Serial.print("DEBUG (slidingWindowBuffer) → incoming byte 0x");
+      Serial.println(incoming, HEX);
+      #endif
 
       // Condición para analizar CRC
       if (window[0] == MISSION_ID &&     // Primer Byte debe ser el ID de MUA MISSION
