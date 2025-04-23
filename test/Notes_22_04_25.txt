@@ -1,0 +1,253 @@
+/////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////// OBC SIMULATION
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H      
+21:55:29.206 > Serial iniciado 
+21:55:29.218 > RTC iniciado.   
+21:55:29.221 > Serial1 Iniciado
+21:55:29.222 > Serial2 Iniciado
+21:55:29.224 > Fecha: 2025-4-22 Hora: 21:22:28
+21:55:29.226 > Setup Finalizado
+21:55:35.227 >  CRC calculado: 0xB7F1
+21:55:35.228 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA        
+21:55:35.240 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x
+21:55:35.244 > Estado (COUNT) establecido exitosamente
+21:55:36.242 > DEBUG (loop) -> Recibido Serial2: 0xBB       
+21:55:36.242 > DEBUG (loop) -> timestamp enviado: 1745356955
+21:55:59.242 > Preparando para establecer TRANSFER MODE
+21:55:59.243 >  CRC calculado: 0xE2A2
+21:55:59.244 > Enviado por Serial1: 0x26 0x2 0x0 0xE2 0xA2 0xA        
+21:55:59.255 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x
+21:55:59.259 > Estado (TRANSFER) establecido exitosamente
+21:55:59.260 > Esperando datos
+21:56:07.376 > Recibido de Serial1 (DATOS):  0x26 0x3 0x24 0x3D 0xDE 0x62 0x67 0x0 0x80 0xE9 0x41 0x0 0x0 0x0 0x0 0x3D 0xDE 0x62 0x67 0x0 0x0 
+0xE7 0x41 0x0 0x0 0x0 0x0 0x3E 0xDE 0x62 0x67 0x0 0x80 0xE4 0x41 0x0 0x0 0x0 0x0 0x9D 0xBA 0xA
+21:56:07.396 >  CRC calculado: 0x9DBA
+21:56:07.397 > Datos recibidos correctamente
+21:56:07.397 > Datos recibidos correctamente
+21:56:07.397 >  CRC calculado: 0x4804
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.412 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.417 > Estado (COUNT) establecido exitosamente
+21:56:47.417 > Preparando para establecer TRANSFER MODE
+21:56:47.418 >  CRC calculado: 0xE2A2
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.412 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.417 > Estado (COUNT) establecido exitosamente
+21:56:47.417 > Preparando para establecer TRANSFER MODE
+21:56:47.418 >  CRC calculado: 0xE2A2
+21:56:47.418 > Enviado por Serial1: 0x26 0x2 0x0 0xE2 0xA2 0xA
+21:56:47.431 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.412 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.417 > Estado (COUNT) establecido exitosamente
+21:56:47.417 > Preparando para establecer TRANSFER MODE
+21:56:47.418 >  CRC calculado: 0xE2A2
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.412 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.417 > Estado (COUNT) establecido exitosamente
+21:56:47.417 > Preparando para establecer TRANSFER MODE
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.412 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.417 > Estado (COUNT) establecido exitosamente
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.412 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:23.399 >  CRC calculado: 0xB7F1
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+21:56:23.401 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+2 0xA
+21:56:47.431 > Recibido de Serial1: 0x26, 0x7, 0x0, 0x48, 0x4, 0xA, 0x 
+21:56:47.436 > Estado (TRANSFER) establecido exitosamente
+21:56:47.436 > Esperando datos
+21:56:55.554 > Recibido de Serial1 (DATOS):  0x26 0x3 0x24 0x3D 0xDE 0x62 0x67 0x0 0x80 0xE9 0x41 0x0 0x0 0x0 0x0 0x3D 0xDE 0x62 0x67 0x0 0x0 
+0xE7 0x41 0x0 0x0 0x0 0x0 0x3E 0xDE 0x62 0x67 0x0 0x80 0xE4 0x41 0x0 0x0 0x0 0x0 0x9D 0xBA 0xA
+21:56:55.579 >  CRC calculado: 0x9DBA
+21:56:55.579 > Datos recibidos correctamente
+21:56:55.580 >  CRC calculado: 0x4804
+21:56:55.581 > ACK enviado
+21:57:01.580 >  CRC calculado: 0xB7F1
+21:57:01.581 > Enviado por Serial1: 0x26 0x1 0x0 0xB7 0xF1 0xA
+
+
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////// MUA SIMULATION
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H      
+21:55:31.041 > DEBUG (setup) -> Serial Iniciado
+21:55:31.042 > DEBUG (setup) -> Serial1 Iniciado
+21:55:31.042 > DEBUG (start_flash) -> Memoria flash iniciada correctamente.
+21:55:31.043 > DEBUG (start_flash) -> Memoria flash_QSPI inicializada correctamente.
+21:55:31.043 > Estado: 0x0
+21:55:34.072 > DEBUG (requestOperationMode) → slidingWindowBuffer
+21:55:34.072 > DEBUG (setup) -> Setup finalizado...
+21:55:35.227 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:55:35.229 > DEBUG (slidingWindowBuffer) → incoming byte 0x26   
+21:55:35.230 > DEBUG (slidingWindowBuffer) → Serial1.available = 5
+21:55:35.231 > DEBUG (slidingWindowBuffer) → incoming byte 0x1
+21:55:35.232 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:55:35.232 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:55:35.234 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:55:35.235 > DEBUG (slidingWindowBuffer) → incoming byte 0xB7        
+21:55:35.235 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:55:35.235 > DEBUG (slidingWindowBuffer) → incoming byte 0xF1        
+21:55:35.236 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:55:35.238 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:55:35.238 > DEBUG (requestOperationMode) -> Recibido de Serial1: 0x 
+260x 10x 00x B70x F10x A
+21:55:35.242 > DEBUG (requestOperationMode) -> COMAND ID: 0x1
+21:55:35.242 > DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED    
+21:55:35.242 > DEBUG (write_OPstate) ->
+21:55:35.292 > DEBUG (getTimestampFromGPS) -> Serial2 Iniciado
+21:55:36.242 > DEBUG (getTimestampFromGPS) -> Timestamp recibido: 1745356955
+21:55:36.246 > setupCOUNT finalizado
+21:55:41.246 > loopCOUNT
+21:55:46.245 > loopCOUNT
+21:55:51.244 > loopCOUNT
+21:55:56.243 > loopCOUNT
+21:55:59.243 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:55:59.244 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:55:59.245 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:55:59.246 > DEBUG (slidingWindowBuffer) → incoming byte 0x2
+21:55:59.246 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:55:59.248 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:55:59.248 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:55:59.249 > DEBUG (slidingWindowBuffer) → incoming byte 0xE2        
+21:55:59.249 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:55:59.250 > DEBUG (slidingWindowBuffer) → incoming byte 0xA2        
+21:55:59.250 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:55:59.252 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:55:59.252 > DEBUG (requestOperationMode) -> Recibido de Serial1: 0x 
+260x 20x 00x E20x A20x A
+21:55:59.255 > DEBUG (requestOperationMode) -> COMAND ID: 0x2
+21:55:59.257 > DEBUG (requestOperationMode) -> TRANSFER MODE ACTIVATED 
+21:55:59.257 > DEBUG (write_OPstate) ->
+21:55:59.308 > Datos de la FLASH: 
+21:55:59.309 > DEBUG (read_all) ->
+21:55:59.310 > 0x3D 0xDE 0x62 0x67 0x0 0x80 0xE9 0x41 0x0 0x0 0x0 0x0 0x3D 0xDE 0x62 0x67 0x0 0x0 0xE7 0x41 0x0 0x0 0x0 0x0 0x3E 0xDE 0x62 0x67 0x0 0x80 0xE4 0x41 0x0 0x0 0x0 0x0
+21:55:59.324 > DEBUG (write_SENDED_DATAaddress) -> ...
+21:55:59.375 > setupTRANSFER finalizado
+21:56:07.372 > DEBUG (read_SENDED_DATAaddress) -> Dirección en memoria: 0xFFF004 Ultima dirección enviada: 0x3D
+21:56:07.374 > DEBUG (sendDataFrame) -> Trama enviada:
+21:56:07.374 >  0x26 0x3 0x24 0x3D 0xDE 0x62 0x67 0x0 0x80 0xE9 0x41 0x0 0x0 0x0 0x0 0x3D 0xDE 0x62 0x67 0x0 0x0 0xE7 0x41 0x0 0x0 0x0 0x0 0x3E 0xDE 0x62 0x67 0x0 0x80 0xE4 0x41 0x0 0x0 0x0 0x0 0x9D 0xBA 0xA
+21:56:07.397 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:56:07.398 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:56:07.399 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:56:07.399 > DEBUG (slidingWindowBuffer) → incoming byte 0x4
+21:56:07.400 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:56:07.401 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:56:07.401 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:56:07.402 > DEBUG (slidingWindowBuffer) → incoming byte 0x48        
+21:56:07.402 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:56:07.403 > DEBUG (slidingWindowBuffer) → incoming byte 0x4
+21:56:07.403 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:56:07.404 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:56:07.404 > DEBUG (sendDataFrame) -> Respuesta recibida:
+21:56:07.404 >  0x26 0x4 0x0 0x48 0x4 0xA
+21:56:07.406 > DEBUG (write_SENDED_DATAaddress) -> ...
+21:56:13.398 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:56:13.402 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:56:13.404 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:56:13.404 > DEBUG (slidingWindowBuffer) → incoming byte 0x1
+21:56:13.404 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:56:13.407 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:56:13.407 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:56:13.407 > DEBUG (slidingWindowBuffer) → incoming byte 0xB7        
+21:56:13.407 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:56:13.407 > DEBUG (slidingWindowBuffer) → incoming byte 0xF1        
+21:56:13.410 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:56:13.410 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:56:13.410 > DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED    
+21:56:13.410 > DEBUG (write_OPstate) ->
+21:56:13.460 > loopCOUNT
+21:56:18.460 > loopCOUNT
+21:56:23.399 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:56:23.401 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:56:23.403 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:56:23.403 > DEBUG (slidingWindowBuffer) → incoming byte 0x1
+21:56:23.404 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:56:23.406 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:56:23.406 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:56:23.406 > DEBUG (slidingWindowBuffer) → incoming byte 0xB7        
+21:56:23.407 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:56:23.407 > DEBUG (slidingWindowBuffer) → incoming byte 0xF1        
+21:56:23.408 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:56:23.408 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:56:23.410 > DEBUG (requestOperationMode) -> Recibido de Serial1: 0x 
+260x 10x 00x B70x F10x A
+21:56:23.413 > DEBUG (requestOperationMode) -> COMAND ID: 0x1
+21:56:23.414 > DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED    
+21:56:23.414 > DEBUG (write_OPstate) ->
+21:56:23.465 > loopCOUNT
+21:56:28.464 > loopCOUNT
+21:56:33.464 > loopCOUNT
+21:56:38.463 > loopCOUNT
+21:56:43.463 > loopCOUNT
+21:56:47.418 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:56:47.420 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:56:47.420 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:56:47.421 > DEBUG (slidingWindowBuffer) → incoming byte 0x2
+21:56:47.423 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:56:47.423 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:56:47.424 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:56:47.424 > DEBUG (slidingWindowBuffer) → incoming byte 0xE2        
+21:56:47.425 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:56:47.425 > DEBUG (slidingWindowBuffer) → incoming byte 0xA2        
+21:56:47.426 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:56:47.427 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:56:47.427 > DEBUG (requestOperationMode) -> Recibido de Serial1: 0x 
+260x 20x 00x E20x A20x A
+21:56:47.432 > DEBUG (requestOperationMode) -> COMAND ID: 0x2
+21:56:47.432 > DEBUG (requestOperationMode) -> TRANSFER MODE ACTIVATED 
+21:56:47.433 > DEBUG (write_OPstate) ->
+21:56:47.484 > Datos de la FLASH: 
+21:56:47.484 > DEBUG (read_all) ->
+21:56:47.485 > 0x3D 0xDE 0x62 0x67 0x0 0x80 0xE9 0x41 0x0 0x0 0x0 0x0 0x3D 0xDE 0x62 0x67 0x0 0x0 0xE7 0x41 0x0 0x0 0x0 0x0 0x3E 0xDE 0x62 0x67 0x0 0x80 0xE4 0x41 0x0 0x0 0x0 0x0
+21:56:47.500 > DEBUG (write_SENDED_DATAaddress) -> ...
+21:56:47.552 > setupTRANSFER finalizado
+21:56:55.550 > DEBUG (read_SENDED_DATAaddress) -> Dirección en memoria: 0xFFF004 Ultima dirección enviada: 0x3D
+21:56:55.552 > DEBUG (sendDataFrame) -> Trama enviada:
+21:56:55.552 >  0x26 0x3 0x24 0x3D 0xDE 0x62 0x67 0x0 0x80 0xE9 0x41 0x0 0x0 0x0 0x0 0x3D 0xDE 0x62 0x67 0x0 0x0 0xE7 0x41 0x0 0x0 0x0 0x0 0x3E 0xDE 0x62 0x67 0x0 0x80 0xE4 0x41 0x0 0x0 0x0 0x0 0x9D 0xBA 0xA      
+21:56:55.580 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:56:55.582 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:56:55.582 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:56:55.583 > DEBUG (slidingWindowBuffer) → incoming byte 0x4
+21:56:55.583 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:56:55.584 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:56:55.584 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:56:55.585 > DEBUG (slidingWindowBuffer) → incoming byte 0x48        
+21:56:55.585 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:56:55.585 > DEBUG (slidingWindowBuffer) → incoming byte 0x4
+21:56:55.586 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:56:55.586 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:56:55.587 > DEBUG (sendDataFrame) -> Respuesta recibida:
+21:56:55.587 >  0x26 0x4 0x0 0x48 0x4 0xA
+21:56:55.589 > DEBUG (write_SENDED_DATAaddress) -> ...
+21:57:01.580 > DEBUG (slidingWindowBuffer) → Serial1.available = 1
+21:57:01.582 > DEBUG (slidingWindowBuffer) → incoming byte 0x26        
+21:57:01.582 > DEBUG (slidingWindowBuffer) → Serial1.available = 5     
+21:57:01.583 > DEBUG (slidingWindowBuffer) → incoming byte 0x1
+21:57:01.584 > DEBUG (slidingWindowBuffer) → Serial1.available = 4     
+21:57:01.585 > DEBUG (slidingWindowBuffer) → incoming byte 0x0
+21:57:01.586 > DEBUG (slidingWindowBuffer) → Serial1.available = 3     
+21:57:01.586 > DEBUG (slidingWindowBuffer) → incoming byte 0xB7        
+21:57:01.587 > DEBUG (slidingWindowBuffer) → Serial1.available = 2     
+21:57:01.587 > DEBUG (slidingWindowBuffer) → incoming byte 0xF1        
+21:57:01.588 > DEBUG (slidingWindowBuffer) → Serial1.available = 1     
+21:57:01.588 > DEBUG (slidingWindowBuffer) → incoming byte 0xA
+21:57:01.589 > DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED    
+21:57:01.589 > DEBUG (write_OPstate) ->
+21:57:01.642 > loopCOUNT

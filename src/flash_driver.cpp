@@ -35,15 +35,15 @@ bool read(uint8_t *data, uint32_t data_length, uint32_t since) {
   len_bytes = Flash_QSPI.readBuffer(since, data, data_length);
   if ( len_bytes == 0 ) {                      /* Si existe un error en la lectura */ 
     #ifdef DEBUG_FLASH
-    Serial.println("ERROR (read_OPstate) -> Error en la lectura de la memoria FLASH.");
+    Serial.println("ERROR (read) -> Error en la lectura de la memoria FLASH.");
     #endif
     return false;
   }
   #ifdef DEBUG_FLASH
-  Serial.print("DEBUG (read_SENDED_DATAaddress) -> Dirección en memoria: 0x");
+  Serial.print("DEBUG (read) -> Dirección en memoria: 0x");
   Serial.print(LAST_ADDRESS_SENT_DIR, HEX);
   Serial.print(" Ultima dirección enviada: 0x");
-  Serial.println(*data, HEX);
+  Serial.println(since, HEX);
   #endif
   return true;
 }
@@ -63,12 +63,18 @@ bool get_SENT_DATAaddress(uint32_t *sent_address) {
     #endif
     return false;
   }
-  #ifdef DEBUG_FLASH
+  #ifdef DEBUG_FLASH_INFO
   Serial.print("DEBUG (get_SENT_DATAaddress) -> Dirección en memoria: 0x");
   Serial.println(LAST_ADDRESS_SENT_DIR, HEX);
   Serial.print("DEBUG (get_SENT_DATAaddress) → Ultima dirección enviada: 0x");
   Serial.println(*sent_address, HEX);
   #endif
+  if ( *sent_address == 0xFFFFFFFF ) {
+    *sent_address = 0x00000000;
+    #ifdef DEBUG_FLASH
+    Serial.println("DEBUG (get_SENT_DATAaddress) -> Iniciando escritura en la direccion 0.");
+    #endif
+  }
   return true;
 }
 
@@ -80,7 +86,7 @@ bool get_SENT_DATAaddress(uint32_t *sent_address) {
  */
 bool write_SENT_DATAaddress(uint32_t* address) {
   #ifdef DEBUG_FLASH
-  Serial.println("DEBUG (write_SENDED_DATAaddress) -> ...");
+  Serial.println("DEBUG (write_SENT_DATAaddress) -> ...");
   #endif
   return write_DATAinfo((uint8_t *)address, ADDRESS_SIZE, SENT_INDEX);
 }
@@ -95,7 +101,7 @@ bool write_SENT_DATAaddress(uint32_t* address) {
  */
 bool write_DATAinfo(uint8_t *buffer, uint32_t len, uint16_t index) {
   if ( index + len > SIZE_INFO ) {
-    #ifdef DEBUG_FLASH
+    #ifdef DEBUG_FLASH_INFO
     Serial.println("DEBUG (write_DATAinfo) -> Datos exceden el tamaño permitido.");
     #endif
     return false;
@@ -106,12 +112,12 @@ bool write_DATAinfo(uint8_t *buffer, uint32_t len, uint16_t index) {
   // Leer los datos actuales del sector
   if ( !Flash_QSPI.readBuffer(SAVED_ADDRESS_SECTOR_DIR, saved, SIZE_INFO) ) {
     #ifdef DEBUG_FLASH
-    Serial.println("DEBUG (write_DATAinfo) -> Error al leer los datos existentes.");
+    Serial.println("ERROR (write_DATAinfo) -> Error al leer los datos existentes.");
     #endif
     return false;
   }
 
-  #ifdef DEBUG_FLASH
+  #ifdef DEBUG_FLASH_INFO
   Serial.println("DEBUG (write_DATAinfo) -> Datos existentes antes de la actualización: ");
   for ( uint8_t i = 0; i < SIZE_INFO; i++ ) {
     Serial.print("0x");
@@ -127,7 +133,7 @@ bool write_DATAinfo(uint8_t *buffer, uint32_t len, uint16_t index) {
   // Borrar el sector
   if ( !Flash_QSPI.eraseSector(SAVED_SYSINFO_SECTOR) ) {
     #ifdef DEBUG_FLASH
-    Serial.println("DEBUG (write_DATAinfo) -> Falló el borrado del sector.");
+    Serial.println("ERROR (write_DATAinfo) -> Falló el borrado del sector.");
     #endif
     return false;
   }
@@ -136,17 +142,15 @@ bool write_DATAinfo(uint8_t *buffer, uint32_t len, uint16_t index) {
   uint32_t len_bytes = Flash_QSPI.writeBuffer(SAVED_ADDRESS_SECTOR_DIR, saved, SIZE_INFO);
   if ( len_bytes == 0 ) {
     #ifdef DEBUG_FLASH
-    Serial.println("DEBUG (write_DATAinfo) -> Error al escribir los datos actualizados.");
+    Serial.println("ERROR (write_DATAinfo) -> Error al escribir los datos actualizados.");
     #endif
     return false;
   }
 
-  #ifdef DEBUG_FLASH
+  #ifdef DEBUG_FLASH_INFO
   Serial.println("DEBUG (write_DATAinfo) -> Datos actualizados correctamente:");
   for ( uint8_t i = 0; i < SIZE_INFO; i++ ) {
-    Serial.print("0x");
-    Serial.print(saved[i], HEX);
-    Serial.print(" ");
+    Serial.print(" 0x");  Serial.print(saved[i], HEX);
   }
   Serial.println();
   #endif
@@ -165,12 +169,12 @@ bool get_OPstate(uint8_t *read) {
   len_bytes = Flash_QSPI.readBuffer(ADDRESS_OP_STATE_DIR, read, 1);
   if ( len_bytes == 0 ) {                      /* Si existe un error en la lectura */ 
     #ifdef DEBUG_FLASH
-    Serial.println("ERROR (read_OPstate) -> Error en la lectura de la memoria FLASH.");
+    Serial.println("ERROR (get_OPstate) -> Error en la lectura de la memoria FLASH.");
     #endif
     return false;
   }
   #ifdef DEBUG_FLASH
-  Serial.print("DEBUG (read_OPstate) -> Dirección: 0x");
+  Serial.print("DEBUG (get_OPstate) -> Dirección: 0x");
   Serial.print(ADDRESS_OP_STATE_DIR, HEX);
   Serial.print(" Estado leído: 0x");
   Serial.println(*read, HEX);
@@ -367,14 +371,14 @@ bool get_address( uint32_t *write_address ) {
     *write_address = 0x00000000;
     return false;
   }
-  #ifdef DEBUG_FLASH
+  #ifdef DEBUG_FLASH_INFO
   Serial.print("DEBUG (get_address) -> Ultima dirección: 0x");
   Serial.println(*write_address, HEX);
   #endif
   
   if (*write_address == 0xFFFFFFFF) {   // Si la última direccion es NULL, se inicia 
     *write_address = 0x00000000;        // desde la posición 0 de la memoria FLASH 
-    #ifdef DEBUG_FLASH
+    #ifdef DEBUG_FLASH_INFO
     Serial.println("DEBUG (get_address) -> Iniciando escritura en la direccion 0.");
     #endif
   }

@@ -111,10 +111,9 @@ void loop() {
     }
     Serial1.write(trama, TRAMA_COMM); 
     
-    Serial.print("Enviado por Serial1: 0x");
+    Serial.print("Enviado por Serial1:");
     for (uint8_t i = 0; i < TRAMA_COMM; i++) {
-      Serial.print(trama[i], HEX);
-      Serial.print(", 0x");
+      Serial.print(" 0x"); Serial.print(trama[i], HEX);
     }
     Serial.println();
 
@@ -145,7 +144,6 @@ void loop() {
       Serial.print("Estado fallido");
     }
 
-    Time = millis();
   }
   
   if ( Serial2.available() > 0 ) { // Para transmitir unixtime
@@ -271,6 +269,7 @@ void loop() {
     } else {
       Serial.println("error en la recepción");
     }
+    Time = millis();
   }
   delay(1000);
 }
@@ -464,11 +463,11 @@ void setupTRANSFER() {
 }
 
 void loopTRANSFER() {
-  delay(10000);
+  delay(5000);
 
   uint8_t buffer[TRAMA_COMM] = {0};
 
-  if ( slidingWindowBuffer(buffer, timeOUT_window) ) {  // Se busca y revisa una trama válida proveniente del OBC
+  if ( slidingWindowBuffer(buffer, timeOUT) ) {  // Se busca y revisa una trama válida proveniente del OBC
     if ( verifyOBCResponse(buffer) ) {  // Se verifica el CRC, si es NACK se maneja en la función
       switch (buffer[1]) {
         case ID_STANDBY:
@@ -517,7 +516,8 @@ void loopTRANSFER() {
           #ifdef DEBUG_MAIN
           Serial.println("DEBUG (requestOperationMode) -> UNKNOWN MODE");
           #endif
-          write_OPstate(0x00);
+          write_OPstate(ID_STANDBY);
+          return ;
           break;
       }   // switch (buffer[1])
     }     // verifyOBCResponse
@@ -586,7 +586,7 @@ bool sendDataFrame(void) {
     delay(timeOUT_invalid_frame);                   // Se tiene que eliminar
     Serial1.write(nack_IF_MUA_to_OBC, TRAMA_COMM);
     #ifdef DEBUG_MAIN
-    Serial.println("Fallo en sendDataFrame → slidingWindowBuffer");
+    Serial.println("ERROR (sendDataFrame) → Fallo slidingWindowBuffer");
     #endif
     return false;
   }
@@ -600,11 +600,11 @@ bool sendDataFrame(void) {
   Serial.println();
   #endif
 
-  if ( !verifyOBCResponse(recibido) ) return false;   // REVISAR, se maneja el invalid frame también
+  if ( !verifyOBCResponse(recibido) ) return false;     // REVISAR, se maneja el invalid frame también
 
   if ( recibido[1] == ACK_OBC_to_MUA ) {
     last_sent_address += TRAMA_DATA_SIZE;
-    write_SENT_DATAaddress(&last_sent_address);       // se actualiza la siguiente dirección a enviar
+    write_SENT_DATAaddress(&last_sent_address);         // se actualiza la siguiente dirección a enviar
   } else if (recibido[1] == ID_FINISH) {
     currentMode = FINISH;
   } else if (recibido[1] == ID_TRANSFER_SYSINFO_MODE) {

@@ -62,6 +62,7 @@ extern const uint8_t ACK_OBC_to_MUA;
 extern const uint16_t crc_table[256];
 
 void requestOperationMode(void);
+void requestOperationMode1(void);
 void getTimestampFromGPS(void);
 unsigned long getTime(void);
 
