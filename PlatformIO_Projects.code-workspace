@@ -6,6 +6,9 @@
 		{
 			"name": "MUA_Control_Placa_Pruebas",
 			"path": "../Platform_Projects/MUA_Control_Placa_Pruebas"
+		},
+		{
+			"path": "../GuaraniSat2/Codigos_Pruebas"
 		}
 	],
 	"settings": {

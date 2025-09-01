@@ -6,8 +6,8 @@
 #ifndef HARDWARE_PINS_H
 #define HARDWARE_PINS_H
 
-#define PLACA_PRUEBAS
-// #define PLACA_FINAL
+// #define PLACA_PRUEBAS
+#define PLACA_FINAL
 
 /////// Sebas_MUA_Control_Dev
 #ifdef PLACA_PRUEBAS

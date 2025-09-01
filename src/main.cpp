@@ -12,607 +12,627 @@
  * pio device monitor -p COM17
  */
 
+ #include <Arduino.h>
+
+#include "hardware_pins.h"
+#include "interrupts.h"
+#include "timer_counter.h"
+#include "flash_driver.h"
+#include "tmp100_driver.h"
+#include "mcp4561_driver.h"
+#include "max1932_driver.h"
+#include "dac8551_driver.h"
+#include "ads1260_driver.h"
+#include "calculos.h"
+#include "obc_comm.h"
+#include "power_manager.h"
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////// SIMULACION OBC
 
-#include <Arduino.h>
+// #include <Arduino.h>
 
-#include "hardware_pins.h"
-#include "RTC_SAMD51.h"
-#include "DateTime.h"
-#include "power_manager.h"
-#include "flash_driver.h"
-#include "obc_comm.h"
+// #include "hardware_pins.h"
+// #include "RTC_SAMD51.h"
+// #include "DateTime.h"
+// #include "power_manager.h"
+// #include "flash_driver.h"
+// #include "obc_comm.h"
 
-#define DEBUG_MAIN
+// #define DEBUG_MAIN
 
-unsigned long date;
+// unsigned long date;
 
-bool state_recibir = false;
-unsigned long tiempo = 0;
+// bool state_recibir = false;
+// unsigned long tiempo = 0;
  
-uint32_t Time;
-uint8_t ID_TRANSFER_DATA_MODE = 0x02;
-uint8_t ACK_OBC_TO_MUA        = 0x04;
+// uint32_t Time;
+// uint8_t ID_TRANSFER_DATA_MODE = 0x02;
+// uint8_t ACK_OBC_TO_MUA        = 0x04;
 
-bool slidingWindowBuffer(uint8_t* buffer);
-bool buildDataFrame(uint8_t* trama, uint8_t ID, uint8_t trama_size, uint32_t address);
-bool verifyOBCResponse(uint8_t* recibido);
-bool sendDataFrame(void);
-uint16_t crc_calculate(uint8_t *data);
+// bool slidingWindowBuffer(uint8_t* buffer);
+// bool buildDataFrame(uint8_t* trama, uint8_t ID, uint8_t trama_size, uint32_t address);
+// bool verifyOBCResponse(uint8_t* recibido);
+// bool sendDataFrame(void);
+// uint16_t crc_calculate(uint8_t *data);
 
-// #define OBC_SIMULATION
-#define MUA_SIMULATION
+// // #define OBC_SIMULATION
+// #define MUA_SIMULATION
 
-#ifdef OBC_SIMULATION
-bool state = false;
-void setup() {
-  delay(6000);
+// #ifdef OBC_SIMULATION
+// bool state = false;
+// void setup() {
+//   delay(6000);
 
-  Serial.begin(115200);
-  Serial.println("Serial iniciado");
-  while ( !rtc.begin() ) {
-    delay(1000);
-    Serial.println("No rtc");
-  }
-  Serial.println("RTC iniciado.");
-  DateTime now = DateTime(F(__DATE__), F(__TIME__));
-  rtc.adjust(now);
-  Serial1.begin(115200);
-  Serial.println("Serial1 Iniciado");
-  Serial2.begin(115200);
-  Serial.println("Serial2 Iniciado");
+//   Serial.begin(115200);
+//   Serial.println("Serial iniciado");
+//   while ( !rtc.begin() ) {
+//     delay(1000);
+//     Serial.println("No rtc");
+//   }
+//   Serial.println("RTC iniciado.");
+//   DateTime now = DateTime(F(__DATE__), F(__TIME__));
+//   rtc.adjust(now);
+//   Serial1.begin(115200);
+//   Serial.println("Serial1 Iniciado");
+//   Serial2.begin(115200);
+//   Serial.println("Serial2 Iniciado");
 
-  DateTime currentTime = rtc.now();
+//   DateTime currentTime = rtc.now();
 
-  Serial.print("Fecha: ");
-  Serial.print(currentTime.year());
-  Serial.print("-");
-  Serial.print(currentTime.month());
-  Serial.print("-");
-  Serial.print(currentTime.day());
-  Serial.print(" Hora: ");
-  Serial.print(currentTime.hour());
-  Serial.print(":");
-  Serial.print(currentTime.minute());
-  Serial.print(":");
-  Serial.println(currentTime.second());
+//   Serial.print("Fecha: ");
+//   Serial.print(currentTime.year());
+//   Serial.print("-");
+//   Serial.print(currentTime.month());
+//   Serial.print("-");
+//   Serial.print(currentTime.day());
+//   Serial.print(" Hora: ");
+//   Serial.print(currentTime.hour());
+//   Serial.print(":");
+//   Serial.print(currentTime.minute());
+//   Serial.print(":");
+//   Serial.println(currentTime.second());
 
-  Time = millis();
+//   Time = millis();
 
-  while ( Serial2.available() ) {
-    Serial2.read();
-  }
+//   while ( Serial2.available() ) {
+//     Serial2.read();
+//   }
 
-  Serial.println("Setup Finalizado");
+//   Serial.println("Setup Finalizado");
 
-  // uint8_t trama_prueba[30] = {0x4A, 0x47, 0x36, 0x59, 0x42, 0x57, 0x30, 0x4A, 0x47, 0x36,
-  //                            0x59, 0x50, 0x59, 0x30, 0x3E, 0xF0, 0xAA, 0x03, 0x12, 0x34, 
-  //                            0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78};
-  // uint16_t crc1 = calcularCRC(trama_prueba, 30);
-  // uint16_t crc2 = mk_CRC(trama_prueba, 30);
+//   // uint8_t trama_prueba[30] = {0x4A, 0x47, 0x36, 0x59, 0x42, 0x57, 0x30, 0x4A, 0x47, 0x36,
+//   //                            0x59, 0x50, 0x59, 0x30, 0x3E, 0xF0, 0xAA, 0x03, 0x12, 0x34, 
+//   //                            0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x12, 0x34, 0x56, 0x78};
+//   // uint16_t crc1 = calcularCRC(trama_prueba, 30);
+//   // uint16_t crc2 = mk_CRC(trama_prueba, 30);
 
-}
+// }
 
-void loop() {
-  if ( millis() - Time > 5000 && !state ) { // Establecer COUNT MODE
-    uint8_t recibido[TRAMA_COMM];
-    uint8_t trama[TRAMA_COMM] = {MISSION_ID, ID_COUNT_MODE, 0x00};
-    uint16_t CRC = crc_calculate(trama);
-    Serial.print(" CRC calculado: 0x");
-    Serial.println(CRC, HEX);
-    trama[TRAMA_COMM-3] = (uint8_t)(CRC >> 8);
-    trama[TRAMA_COMM-2] = (uint8_t)(CRC & 0xFF);
-    trama[TRAMA_COMM-1] = STOP_BYTE;
+// void loop() {
+//   if ( millis() - Time > 5000 && !state ) { // Establecer COUNT MODE
+//     uint8_t recibido[TRAMA_COMM];
+//     uint8_t trama[TRAMA_COMM] = {MISSION_ID, ID_COUNT_MODE, 0x00};
+//     uint16_t CRC = crc_calculate(trama);
+//     Serial.print(" CRC calculado: 0x");
+//     Serial.println(CRC, HEX);
+//     trama[TRAMA_COMM-3] = (uint8_t)(CRC >> 8);
+//     trama[TRAMA_COMM-2] = (uint8_t)(CRC & 0xFF);
+//     trama[TRAMA_COMM-1] = STOP_BYTE;
 
-    while (Serial1.available()){  // flush serial
-      Serial1.read();
-    }
-    Serial1.write(trama, TRAMA_COMM); 
+//     while (Serial1.available()){  // flush serial
+//       Serial1.read();
+//     }
+//     Serial1.write(trama, TRAMA_COMM); 
     
-    Serial.print("Enviado por Serial1:");
-    for (uint8_t i = 0; i < TRAMA_COMM; i++) {
-      Serial.print(" 0x"); Serial.print(trama[i], HEX);
-    }
-    Serial.println();
+//     Serial.print("Enviado por Serial1:");
+//     for (uint8_t i = 0; i < TRAMA_COMM; i++) {
+//       Serial.print(" 0x"); Serial.print(trama[i], HEX);
+//     }
+//     Serial.println();
 
-    while ( millis() - Time < 10000 ) {
-      if ( Serial1.available() >= TRAMA_COMM ) {
-        break;
-      }
-    }
-    if ( Serial1.available() < TRAMA_COMM ) {
-      Time = millis();
-      return ;
-    }
-    while ( Serial2.available() ) {
-      Serial2.read();
-    }
-    Serial1.readBytes(recibido, TRAMA_COMM);
-    Serial.print("Recibido de Serial1: 0x");
-    for (uint8_t i = 0; i < TRAMA_COMM; i++) {
-      Serial.print(recibido[i], HEX);
-      Serial.print(", 0x");
-    }
-    Serial.println();
+//     while ( millis() - Time < 10000 ) {
+//       if ( Serial1.available() >= TRAMA_COMM ) {
+//         break;
+//       }
+//     }
+//     if ( Serial1.available() < TRAMA_COMM ) {
+//       Time = millis();
+//       return ;
+//     }
+//     while ( Serial2.available() ) {
+//       Serial2.read();
+//     }
+//     Serial1.readBytes(recibido, TRAMA_COMM);
+//     Serial.print("Recibido de Serial1: 0x");
+//     for (uint8_t i = 0; i < TRAMA_COMM; i++) {
+//       Serial.print(recibido[i], HEX);
+//       Serial.print(", 0x");
+//     }
+//     Serial.println();
     
-    if ( recibido[1] == ACK_MUA_TO_OBC ) {
-      state = true;
-      Serial.println("Estado (COUNT) establecido exitosamente");
-    } else {
-      Serial.print("Estado fallido");
-    }
+//     if ( recibido[1] == ID_COUNT_MODE ) {
+//       state = true;
+//       Serial.println("Estado (COUNT) establecido exitosamente");
+//     } else {
+//       Serial.print("Estado fallido");
+//     }
 
-  }
+//   }
   
-  if ( Serial2.available() > 0 ) { // Para transmitir unixtime
-    uint8_t read2;
-    Serial2.readBytes(&read2, 1);
+//   if ( Serial2.available() > 0 ) { // Para transmitir unixtime
+//     uint8_t read2;
+//     Serial2.readBytes(&read2, 1);
 
-    #ifdef DEBUG_MAIN
-    Serial.print("DEBUG (loop) -> Recibido Serial2: 0x");
-    Serial.println(read2, HEX);
-    #endif
+//     #ifdef DEBUG_MAIN
+//     Serial.print("DEBUG (loop) -> Recibido Serial2: 0x");
+//     Serial.println(read2, HEX);
+//     #endif
     
-    if ( read2 == 0xBB ) { // REQUEST_TIMESTAMP
-      date = rtc.now().unixtime();
-      Serial2.write((uint8_t *)&date, sizeof(date));
-      #ifdef DEBUG_MAIN
-      Serial.print("DEBUG (loop) -> timestamp enviado: ");
-      Serial.println(date);
-      #endif
-    }
-  }
+//     if ( read2 == 0xBB ) { // REQUEST_TIMESTAMP
+//       date = rtc.now().unixtime();
+//       Serial2.write((uint8_t *)&date, sizeof(date));
+//       #ifdef DEBUG_MAIN
+//       Serial.print("DEBUG (loop) -> timestamp enviado: ");
+//       Serial.println(date);
+//       #endif
+//     }
+//   }
 
-  if ( millis() - Time > 10000 && !state ) {
-    Serial.print("Date: ");
-    Serial.print(rtc.now().year());
-    Serial.print("-");
-    Serial.print(rtc.now().month());
-    Serial.print("-");
-    Serial.print(rtc.now().day());
-    Serial.print(" Hora: ");
-    Serial.print(rtc.now().hour());
-    Serial.print(":");
-    Serial.print(rtc.now().minute());
-    Serial.print(":");
-    Serial.println(rtc.now().second());
-    Serial.print(", ");
-    Serial.print(rtc.now().unixtime());
-    Serial.print(", ");
-    Serial.println(rtc.now().unixtime(), HEX);
-    Time = millis();
-  }
+//   if ( millis() - Time > 10000 && !state ) {
+//     Serial.print("Date: ");
+//     Serial.print(rtc.now().year());
+//     Serial.print("-");
+//     Serial.print(rtc.now().month());
+//     Serial.print("-");
+//     Serial.print(rtc.now().day());
+//     Serial.print(" Hora: ");
+//     Serial.print(rtc.now().hour());
+//     Serial.print(":");
+//     Serial.print(rtc.now().minute());
+//     Serial.print(":");
+//     Serial.println(rtc.now().second());
+//     Serial.print(", ");
+//     Serial.print(rtc.now().unixtime());
+//     Serial.print(", ");
+//     Serial.println(rtc.now().unixtime(), HEX);
+//     Time = millis();
+//   }
 
-  if ( millis() - Time > 30000 && state ) { // Establecer TRANSFER MODE
-    Serial.println("Preparando para establecer TRANSFER MODE");
+//   if ( millis() - Time > 30000 && state ) { // Establecer TRANSFER MODE
+//     Serial.println("Preparando para establecer TRANSFER MODE");
     
-    uint8_t recibido[TRAMA_COMM];
-    uint8_t trama[TRAMA_COMM] = {MISSION_ID, ID_TRANSFER_DATA_MODE, 0x00};
-    uint16_t CRC = crc_calculate(trama);
-    Serial.print(" CRC calculado: 0x");
-    Serial.println(CRC, HEX);
-    trama[TRAMA_COMM-3] = (uint8_t)(CRC >> 8);
-    trama[TRAMA_COMM-2] = (uint8_t)(CRC & 0xFF);
-    trama[TRAMA_COMM-1] = STOP_BYTE;
+//     uint8_t recibido[TRAMA_COMM];
+//     uint8_t trama[TRAMA_COMM] = {MISSION_ID, ID_TRANSFER_DATA_MODE, 0x00};
+//     uint16_t CRC = crc_calculate(trama);
+//     Serial.print(" CRC calculado: 0x");
+//     Serial.println(CRC, HEX);
+//     trama[TRAMA_COMM-3] = (uint8_t)(CRC >> 8);
+//     trama[TRAMA_COMM-2] = (uint8_t)(CRC & 0xFF);
+//     trama[TRAMA_COMM-1] = STOP_BYTE;
 
-    while (Serial1.available()){  // flush serial
-      Serial1.read();
-    }
-    Serial1.write(trama, TRAMA_COMM); 
-    Serial.print("Enviado por Serial1:");
-    for (uint8_t i = 0; i < TRAMA_COMM; i++) {
-      Serial.print(" 0x");
-      Serial.print(trama[i], HEX);
-    }
-    Serial.println();
+//     while (Serial1.available()){  // flush serial
+//       Serial1.read();
+//     }
+//     Serial1.write(trama, TRAMA_COMM); 
+//     Serial.print("Enviado por Serial1:");
+//     for (uint8_t i = 0; i < TRAMA_COMM; i++) {
+//       Serial.print(" 0x");
+//       Serial.print(trama[i], HEX);
+//     }
+//     Serial.println();
 
-    while ( Serial1.available() < TRAMA_COMM ); // esperar ack
+//     while ( Serial1.available() < TRAMA_COMM ); // esperar ack
 
-    Serial1.readBytes(recibido, TRAMA_COMM);
-    Serial.print("Recibido de Serial1: 0x");
-    for (uint8_t i = 0; i < TRAMA_COMM; i++) {
-      Serial.print(recibido[i], HEX);
-      Serial.print(", 0x");
-    }
-    Serial.println();
+//     Serial1.readBytes(recibido, TRAMA_COMM);
+//     Serial.print("Recibido de Serial1: 0x");
+//     for (uint8_t i = 0; i < TRAMA_COMM; i++) {
+//       Serial.print(recibido[i], HEX);
+//       Serial.print(", 0x");
+//     }
+//     Serial.println();
     
-    if ( recibido[1] == ACK_MUA_TO_OBC ) {
-      state = true;
-      Serial.println("Estado (TRANSFER) establecido exitosamente");
-      state_recibir = true;
-    } else {
-      Serial.print("Estado fallido");
-    }
+//     if ( recibido[1] == ID_TRANSFER_DATA_MODE ) {
+//       state = true;
+//       Serial.println("Estado (TRANSFER) establecido exitosamente");
+//       state_recibir = true;
+//     } else {
+//       Serial.print("Estado fallido");
+//     }
 
-    Time = millis();
-  }
+//     Time = millis();
+//   }
 
-  if ( state_recibir ) {
-    uint8_t trama_size = 42;
-    uint8_t recibido[trama_size];
-    uint8_t enviar[TRAMA_COMM] = {0x26, ACK_OBC_TO_MUA, 0x00};
-    uint16_t CRC;
-    Serial.println("Esperando datos");
-    delay(100);
-    while ( Serial1.available() < trama_size );
+//   if ( state_recibir ) {
+//     uint8_t trama_size = 42;
+//     uint8_t recibido[trama_size];
+//     uint8_t enviar[TRAMA_COMM] = {0x26, ACK_OBC_TO_MUA, 0x00};
+//     uint16_t CRC;
+//     Serial.println("Esperando datos");
+//     delay(100);
+//     while ( Serial1.available() < trama_size );
 
-    Serial1.readBytes(recibido, trama_size);
-    Serial.print("Recibido de Serial1 (DATOS): ");
-    for (uint8_t i = 0; i < trama_size; i++) {
-      Serial.print(" 0x");
-      Serial.print(recibido[i], HEX);
-    }
-    Serial.println();
+//     Serial1.readBytes(recibido, trama_size);
+//     Serial.print("Recibido de Serial1 (DATOS): ");
+//     for (uint8_t i = 0; i < trama_size; i++) {
+//       Serial.print(" 0x");
+//       Serial.print(recibido[i], HEX);
+//     }
+//     Serial.println();
 
-    CRC = crc_calculate(recibido);
-    Serial.print(" CRC calculado: 0x");
-    Serial.println(CRC, HEX);
-    uint16_t CRC_MUA = (recibido[trama_size-3] << 8) | recibido[trama_size-2];
-    if ( CRC == CRC_MUA && recibido[0] == 0x26) {
-      state = false;
-      state_recibir = false;
-      Serial.println("Datos recibidos correctamente");
-      Serial.print(" CRC calculado: 0x");
-      CRC = crc_calculate(enviar);
-      Serial.println(CRC, HEX);
-      enviar[TRAMA_COMM-3] = (uint8_t)(CRC >> 8);
-      enviar[TRAMA_COMM-2] = (uint8_t)(CRC & 0xFF);
-      enviar[TRAMA_COMM-1] = STOP_BYTE;
+//     CRC = crc_calculate(recibido);
+//     Serial.print(" CRC calculado: 0x");
+//     Serial.println(CRC, HEX);
+//     uint16_t CRC_MUA = (recibido[trama_size-3] << 8) | recibido[trama_size-2];
+//     if ( CRC == CRC_MUA && recibido[0] == 0x26) {
+//       state = false;
+//       state_recibir = false;
+//       Serial.println("Datos recibidos correctamente");
+//       Serial.print(" CRC calculado: 0x");
+//       // CRC = crc_calculate(enviar);
+//       // Serial.println(CRC, HEX);
+//       // enviar[TRAMA_COMM-3] = (uint8_t)(CRC >> 8);
+//       // enviar[TRAMA_COMM-2] = (uint8_t)(CRC & 0xFF);
+//       enviar[1] = recibido[1];
+//       enviar[TRAMA_COMM-3] = 0xAA;
+//       enviar[TRAMA_COMM-2] = 0xAA;
+//       enviar[TRAMA_COMM-1] = STOP_BYTE;
 
-      while( Serial1.available() ) { // flush serial1
-        Serial1.read();
-      }
-      Serial1.write(enviar, TRAMA_COMM);
-      Serial.println("ACK enviado");
-    } else {
-      Serial.println("error en la recepción");
-    }
-    Time = millis();
-  }
-  delay(1000);
-}
-#endif
+//       while( Serial1.available() ) { // flush serial1
+//         Serial1.read();
+//       }
+//       Serial1.write(enviar, TRAMA_COMM);
+//       Serial.println("ACK enviado");
+//     } else {
+//       Serial.println("error en la recepción");
+//     }
+//     Time = millis();
+//   }
+//   delay(1000);
+// }
+// #endif
 
-/////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////////
+// /////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef MUA_SIMULATION
-uint8_t state = 0x00;
+// #ifdef MUA_SIMULATION
+// uint8_t state = 0x00;
 
-void setupCOUNT(void);
-void loopCOUNT(void);
-void setupTRANSFER(void);
-void loopTRANSFER(void);
-void loopTRANSFERinfo(void);
+// void setupCOUNT(void);
+// void loopCOUNT(void);
+// void setupTRANSFER(void);
+// void loopTRANSFER(void);
+// void loopTRANSFERinfo(void);
 
-void setup() {
-  delay(6000);
+// void setup() {
+//   delay(6000);
 
-  Serial.begin(115200);                 // Puerto USB
-  #ifdef DEBUG_MAIN
-  Serial.println("DEBUG (setup) -> Serial Iniciado");
-  #endif
+//   Serial.begin(115200);                 // Puerto USB
+//   #ifdef DEBUG_MAIN
+//   Serial.println("DEBUG (setup) -> Serial Iniciado");
+//   #endif
 
-  // Serial.println("PRUEBA DE FLUJO DE PARTICULAS COMPENSANDO EL VBD, ambos canales");
+//   // Serial.println("PRUEBA DE FLUJO DE PARTICULAS COMPENSANDO EL VBD, ambos canales");
 
-  Serial1.begin(115200);                // OBC (On Board Computer)
-  #ifdef DEBUG_MAIN
-  Serial.println("DEBUG (setup) -> Serial1 Iniciado");
-  #endif
+//   Serial1.begin(115200);                // OBC (On Board Computer)
+//   #ifdef DEBUG_MAIN
+//   Serial.println("DEBUG (setup) -> Serial1 Iniciado");
+//   #endif
 
-  // /* Inicialización de memoria Flash */
-  if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
-    // break;
-    #ifdef DEBUG_MAIN
-    Serial.println("DEBUG (setup) -> Flash con problemss");
-    #endif
-  }
+//   // /* Inicialización de memoria Flash */
+//   if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
+//     // break;
+//     #ifdef DEBUG_MAIN
+//     Serial.println("DEBUG (setup) -> Flash con problemss");
+//     #endif
+//   }
 
-  // if ( erase_debug() ) {
-  //   #ifdef DEBUG_MAIN
-  //   Serial.println("DEBUG (setup) -> debug borrado");
-  //   #endif
-  // } else {
-  //   #ifdef DEBUG_MAIN
-  //   Serial.println("DEBUG (setup) -> No se pudo borrar debug");
-  //   #endif
-  // }
+//   // if ( erase_debug() ) {
+//   //   #ifdef DEBUG_MAIN
+//   //   Serial.println("DEBUG (setup) -> debug borrado");
+//   //   #endif
+//   // } else {
+//   //   #ifdef DEBUG_MAIN
+//   //   Serial.println("DEBUG (setup) -> No se pudo borrar debug");
+//   //   #endif
+//   // }
 
-  // if ( erase_all() ) {
-  //   Serial.println("Flash borrada");
-  // }
+//   // if ( erase_all() ) {
+//   //   Serial.println("Flash borrada");
+//   // }
 
-  // Restaurar último estado guardado en memoria
-  // get_OPstate(&state);
+//   // Restaurar último estado guardado en memoria
+//   // get_OPstate(&state);
 
 
-  pinMode(PA01, OUTPUT);                            // Salida para TC2 (utiliza también PA15)
+//   pinMode(PA01, OUTPUT);                            // Salida para TC2 (utiliza también PA15)
 
-  Serial.print("Estado: 0x");
-  Serial.println(state, HEX);
+//   Serial.print("Estado: 0x");
+//   Serial.println(state, HEX);
 
-  switch ( state ) {
-    case 0x00:                                // STAND_BY
-    case 0xFF:
-      currentMode = STAND_BY;
-      requestOperationMode();                 // Espera del modo de operación
-      if ( currentMode == COUNT_MODE ) {
-        setupCOUNT();
-      } else if ( currentMode == TRANSFER_DATA_MODE ) {
-        setupTRANSFER();
-      } else if ( currentMode == TRANSFER_INFO_MODE ) {
-        setupTRANSFER();
-      }
-      break;
+//   switch ( state ) {
+//     case 0x00:                                // STAND_BY
+//     case 0xFF:
+//       currentMode = STAND_BY;
+//       requestOperationMode();                 // Espera del modo de operación
+//       if ( currentMode == COUNT_MODE ) {
+//         setupCOUNT();
+//       } else if ( currentMode == TRANSFER_DATA_MODE ) {
+//         setupTRANSFER();
+//       } else if ( currentMode == TRANSFER_INFO_MODE ) {
+//         setupTRANSFER();
+//       }
+//       break;
 
-    case 0x01:                                // COUNT_MODE
-      currentMode = COUNT_MODE;
-      #ifdef DEBUG_MAIN
-      Serial.println("DEBUG (setup) -> COUNT_MODE iniciado");
-      #endif
-      setupCOUNT();
-      break;
+//     case 0x01:                                // COUNT_MODE
+//       currentMode = COUNT_MODE;
+//       #ifdef DEBUG_MAIN
+//       Serial.println("DEBUG (setup) -> COUNT_MODE iniciado");
+//       #endif
+//       setupCOUNT();
+//       break;
 
-    case 0x02:                                // TRANSFER_DATA_MODE
-      currentMode = TRANSFER_DATA_MODE;
-      setupTRANSFER();
-      break;
+//     case 0x02:                                // TRANSFER_DATA_MODE
+//       currentMode = TRANSFER_DATA_MODE;
+//       setupTRANSFER();
+//       break;
     
-    case 0x08:
-      currentMode = FINISH;
-      enterOffMode();
-      break;
+//     case 0x08:
+//       currentMode = FINISH;
+//       enterOffMode();
+//       break;
 
-    case 0x09:                                // TRANSFER_DATA_MODE
-      currentMode = TRANSFER_INFO_MODE;
-      setupTRANSFER();
-      break;
+//     case 0x09:                                // TRANSFER_DATA_MODE
+//       currentMode = TRANSFER_INFO_MODE;
+//       setupTRANSFER();
+//       break;
 
-    default:
-      /* Modo no seleccionado o incorrecto, manejar... */
-      currentMode = STAND_BY;
-      break;
-  }
+//     default:
+//       /* Modo no seleccionado o incorrecto, manejar... */
+//       currentMode = STAND_BY;
+//       break;
+//   }
 
-  #ifdef DEBUG_MAIN
-  Serial.println("DEBUG (setup) -> Setup finalizado...");
-  #endif
-}
+//   #ifdef DEBUG_MAIN
+//   Serial.println("DEBUG (setup) -> Setup finalizado...");
+//   #endif
+// }
 
-void loop() {
-  switch ( currentMode ) {
-    case STAND_BY:
-      requestOperationMode();
-      if (currentMode == COUNT_MODE) {
-        setupCOUNT();
-      } else if (currentMode == TRANSFER_DATA_MODE) {
-        setupTRANSFER();
-      } else if (currentMode == TRANSFER_INFO_MODE) {
-        setupTRANSFER();
-      }
-      break;
+// void loop() {
+//   switch ( currentMode ) {
+//     case STAND_BY:
+//       requestOperationMode();
+//       if (currentMode == COUNT_MODE) {
+//         setupCOUNT();
+//       } else if (currentMode == TRANSFER_DATA_MODE) {
+//         setupTRANSFER();
+//       } else if (currentMode == TRANSFER_INFO_MODE) {
+//         setupTRANSFER();
+//       }
+//       break;
 
-    case COUNT_MODE:
-      loopCOUNT();
-      if ( Serial1.available() ) {
-        requestOperationMode();
-        if (currentMode == TRANSFER_DATA_MODE) {
-          setupTRANSFER();
-        } else if (currentMode == TRANSFER_INFO_MODE) {
-          setupTRANSFER();
-        }
-      }
-      break;
+//     case COUNT_MODE:
+//       loopCOUNT();
+//       if ( Serial1.available() ) {
+//         requestOperationMode();
+//         if (currentMode == TRANSFER_DATA_MODE) {
+//           setupTRANSFER();
+//         } else if (currentMode == TRANSFER_INFO_MODE) {
+//           setupTRANSFER();
+//         }
+//       }
+//       break;
 
-    case TRANSFER_DATA_MODE:
-      loopTRANSFER();
-      break;
+//     case TRANSFER_DATA_MODE:
+//       loopTRANSFER();
+//       break;
 
-    case TRANSFER_INFO_MODE:
-      loopTRANSFERinfo();
-      break;
+//     case TRANSFER_INFO_MODE:
+//       loopTRANSFERinfo();
+//       break;
     
-    case FINISH:
-      #ifdef DEBUG_MAIN
-      Serial.println("DEBUG (requestOperationMode) -> FINISH MODE ACTIVATED");
-      Serial.println("Sleep mode in progress: Executing order 66.");
-      #endif
-      write_OPstate(0x00);
-      enterOffMode();
-      break;
+//     case FINISH:
+//       #ifdef DEBUG_MAIN
+//       Serial.println("DEBUG (requestOperationMode) -> FINISH MODE ACTIVATED");
+//       Serial.println("Sleep mode in progress: Executing order 66.");
+//       #endif
+//       write_OPstate(0x00);
+//       enterOffMode();
+//       break;
 
-    default:
-      #ifdef DEBUG_MAIN
-      Serial.println("DEBUG (loop) -> UNKNOWN_MODE");
-      #endif
-      delay(2000);
-      requestOperationMode();
-      // if ( !setup_state && currentMode != UNKNOWN_MODE) {
-      //   setupCOUNT();
-      // }
-      /* Modo no seleccionado o incorrecto, manejar... */
-      break;
-  }
-}
+//     default:
+//       #ifdef DEBUG_MAIN
+//       Serial.println("DEBUG (loop) -> UNKNOWN_MODE");
+//       #endif
+//       delay(2000);
+//       requestOperationMode();
+//       // if ( !setup_state && currentMode != UNKNOWN_MODE) {
+//       //   setupCOUNT();
+//       // }
+//       /* Modo no seleccionado o incorrecto, manejar... */
+//       break;
+//   }
+// }
 
-void setupCOUNT() {
-  pinMode(Interface_EN, OUTPUT);
-  getTimestampFromGPS();
-  digitalWrite(Interface_EN, HIGH);
-  tiempo = millis();
-  Serial.println("setupCOUNT finalizado");
-}
+// void setupCOUNT() {
+//   pinMode(Interface_EN, OUTPUT);
+//   getTimestampFromGPS();
+//   digitalWrite(Interface_EN, HIGH);
+//   tiempo = millis();
+//   Serial.println("setupCOUNT finalizado");
+// }
 
-void loopCOUNT() {
-  if ( millis() - tiempo > 5000 ) {
-    Serial.println("loopCOUNT");
-    tiempo = millis();
-  }
-}
+// void loopCOUNT() {
+//   if ( millis() - tiempo > 5000 ) {
+//     Serial.println("loopCOUNT");
+//     tiempo = millis();
+//   }
+// }
 
-void setupTRANSFER() {
-  digitalWrite(Interface_EN, LOW);
-  Serial.println("Datos de la FLASH: ");
-  read_all();
-  uint32_t start_address = 0x00000000;
-  write_SENT_DATAaddress(&start_address);  // Para transferir desde el inicio
-  Serial.println("setupTRANSFER finalizado");
-}
+// void setupTRANSFER() {
+//   digitalWrite(Interface_EN, LOW);
+//   Serial.println("Datos de la FLASH: ");
+//   read_all();
+//   uint32_t start_address = 0x00000000;
+//   write_SENT_DATAaddress(&start_address);  // Para transferir desde el inicio
+//   Serial.println("setupTRANSFER finalizado");
+// }
 
-void loopTRANSFER() {
-  delay(5000);
+// void loopTRANSFER() {
+//   delay(5000);
 
-  uint8_t buffer[TRAMA_COMM] = {0};
+//   uint8_t buffer[TRAMA_COMM] = {0};
 
-  if ( slidingWindowBuffer(buffer, timeOUT) ) {  // Se busca y revisa una trama válida proveniente del OBC
-    if ( verifyOBCResponse(buffer) ) {  // Se verifica el CRC, si es NACK se maneja en la función
-      switch (buffer[1]) {
-        case ID_STANDBY:
-          currentMode = STAND_BY;
-          #ifdef DEBUG_MAIN
-          Serial.println("DEBUG (requestOperationMode) -> STAND_BY ACTIVATED");
-          #endif
-          write_OPstate(ID_STANDBY);
-          return ;
-          break;
-        case ID_COUNT_MODE:
-          currentMode = COUNT_MODE;
-          #ifdef DEBUG_MAIN
-          Serial.println("DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED");
-          #endif
-          write_OPstate(ID_COUNT_MODE);
-          return ;
-          break;
-        case ID_TRANSFER_MODE:
-          currentMode = TRANSFER_DATA_MODE;
-          #ifdef DEBUG_MAIN
-          Serial.println("DEBUG (requestOperationMode) -> TRANSFER MODE ACTIVATED");
-          #endif
-          write_OPstate(ID_TRANSFER_MODE);
-          // return ;
-          break;
-        case ID_FINISH:
-          currentMode = FINISH;
-          #ifdef DEBUG_MAIN
-          Serial.println("DEBUG (requestOperationMode) -> FINISH MODE ACTIVATED");
-          Serial.println("Sleep mode in progress: Executing order 66.");
-          #endif
-          write_OPstate(ID_FINISH);
-          return ;
-          break;
-        case ID_TRANSFER_SYSINFO_MODE:
-          currentMode = TRANSFER_INFO_MODE;
-          #ifdef DEBUG_MAIN
-          Serial.println("DEBUG (requestOperationMode) -> TRANSFER SYSINFO MODE ACTIVATED");
-          #endif
-          write_OPstate(ID_TRANSFER_SYSINFO_MODE);
-          return ;
-          break;
-        default:
-          currentMode = STAND_BY;
-          #ifdef DEBUG_MAIN
-          Serial.println("DEBUG (requestOperationMode) -> UNKNOWN MODE");
-          #endif
-          write_OPstate(ID_STANDBY);
-          return ;
-          break;
-      }   // switch (buffer[1])
-    }     // verifyOBCResponse
-  }       // slidingWindowBuffer
+//   if ( slidingWindowBuffer(buffer, timeOUT) ) {  // Se busca y revisa una trama válida proveniente del OBC
+//     if ( verifyOBCResponse(buffer) ) {  // Se verifica el CRC, si es NACK se maneja en la función
+//       switch (buffer[1]) {
+//         case ID_STANDBY:
+//           currentMode = STAND_BY;
+//           #ifdef DEBUG_MAIN
+//           Serial.println("DEBUG (requestOperationMode) -> STAND_BY ACTIVATED");
+//           #endif
+//           write_OPstate(ID_STANDBY);
+//           return ;
+//           break;
+//         case ID_COUNT_MODE:
+//           currentMode = COUNT_MODE;
+//           #ifdef DEBUG_MAIN
+//           Serial.println("DEBUG (requestOperationMode) -> COUNT MODE ACTIVATED");
+//           #endif
+//           write_OPstate(ID_COUNT_MODE);
+//           return ;
+//           break;
+//         case ID_TRANSFER_MODE:
+//           currentMode = TRANSFER_DATA_MODE;
+//           #ifdef DEBUG_MAIN
+//           Serial.println("DEBUG (requestOperationMode) -> TRANSFER MODE ACTIVATED");
+//           #endif
+//           write_OPstate(ID_TRANSFER_MODE);
+//           // return ;
+//           break;
+//         case ID_FINISH:
+//           currentMode = FINISH;
+//           #ifdef DEBUG_MAIN
+//           Serial.println("DEBUG (requestOperationMode) -> FINISH MODE ACTIVATED");
+//           Serial.println("Sleep mode in progress: Executing order 66.");
+//           #endif
+//           write_OPstate(ID_FINISH);
+//           return ;
+//           break;
+//         case ID_TRANSFER_SYSINFO_MODE:
+//           currentMode = TRANSFER_INFO_MODE;
+//           #ifdef DEBUG_MAIN
+//           Serial.println("DEBUG (requestOperationMode) -> TRANSFER SYSINFO MODE ACTIVATED");
+//           #endif
+//           write_OPstate(ID_TRANSFER_SYSINFO_MODE);
+//           return ;
+//           break;
+//         default:
+//           currentMode = STAND_BY;
+//           #ifdef DEBUG_MAIN
+//           Serial.println("DEBUG (requestOperationMode) -> UNKNOWN MODE");
+//           #endif
+//           write_OPstate(ID_STANDBY);
+//           return ;
+//           break;
+//       }   // switch (buffer[1])
+//     }     // verifyOBCResponse
+//   }       // slidingWindowBuffer
 
-  if ( !sendDataFrame() ) {            // Durante sendDataFrame se puede recibir comandos del OBC
-    #ifdef DEBUG_MAIN
-    Serial.println("DEBUG (loopTRANSFER) -> Falló el envío de trama.");
-    #endif
-    return ;
-  }
-}
+//   if ( !sendDataFrame() ) {            // Durante sendDataFrame se puede recibir comandos del OBC
+//     #ifdef DEBUG_MAIN
+//     Serial.println("DEBUG (loopTRANSFER) -> Falló el envío de trama.");
+//     #endif
+//     return ;
+//   }
+// }
 
-void loopTRANSFERinfo() {
+// void loopTRANSFERinfo() {
 
-}
+// }
 
-#endif
-
-
-/************************************************************************************************************
- * @fn      sendDataFrame
- * @brief   Envía una trama de datos al OBC, recibe ACK o NACK y ejecuta en consecuencia
- * @param   void
- * @return  true: Transmisión exitosa, ACK recibido ... 
- * @return  false: Transmisión fallida, CRC invalide, data frame invalid or timeout
- * @todo    - Al esperar ACK solo debe ir timeOUT_invalid_frame
- */
-bool sendDataFrame(void) {
-  uint32_t last_address_written = 0xFFFFFFFF;
-  uint32_t last_sent_address = 0xFFFFFFFF;
-
-  if (!get_address(&last_address_written)) return false;
-  if (!get_SENT_DATAaddress(&last_sent_address)) return false;
-
-  if (last_sent_address == 0xFFFFFFFF) last_sent_address = 0x00;  // primer envío de día uno (*festeja*)
-  if (last_address_written == last_sent_address) {                // ya no quedan datos en memoria por enviar
-    #ifdef DEBUG_MAIN
-    Serial.println("DEBUG (sendDataFrame) → last_address_written == last_sent_address");
-    #endif
-    // currentMode = FINISH;
-    return true;
-  }
-
-  uint8_t trama_size = TRAMA_DATA_SIZE + TRAMA_COMM;
-  uint8_t trama[trama_size];
-  if ( !buildDataFrame(trama, ID_SENT_DATA, TRAMA_DATA_SIZE, last_sent_address) ) return false;
-
-  Serial1.write(trama, trama_size);
-
-  #ifdef DEBUG_MAIN
-  Serial.println("DEBUG (sendDataFrame) -> Trama enviada:");
-  for ( uint8_t i = 0; i < trama_size; i++ ) {
-    Serial.print(" 0x"); Serial.print(trama[i], HEX);
-  }
-  Serial.println();
-  #endif
-
-  // unsigned long tiempo = millis();
-  // while ( Serial1.available() < TRAMA_COMM ) {
-  //   if ( (millis() - tiempo) >= timeOUT ) return false;
-  // }
-  uint8_t recibido[TRAMA_COMM];
-  // Serial1.readBytes(recibido, TRAMA_COMM);
-  if ( !slidingWindowBuffer(recibido, timeOUT) ) {  // Solo debe ir timeOUT_invalid_frame
-    delay(timeOUT_invalid_frame);                   // Se tiene que eliminar
-    Serial1.write(nack_IF_MUA_to_OBC, TRAMA_COMM);
-    #ifdef DEBUG_MAIN
-    Serial.println("ERROR (sendDataFrame) → Fallo slidingWindowBuffer");
-    #endif
-    return false;
-  }
+// #endif
 
 
-  #ifdef DEBUG_MAIN
-  Serial.println("DEBUG (sendDataFrame) -> Respuesta recibida:");
-  for ( uint8_t i = 0; i < TRAMA_COMM; i++ ) {
-    Serial.print(" 0x"); Serial.print(recibido[i], HEX);
-  }
-  Serial.println();
-  #endif
+// /************************************************************************************************************
+//  * @fn      sendDataFrame
+//  * @brief   Envía una trama de datos al OBC, recibe ACK o NACK y ejecuta en consecuencia
+//  * @param   void
+//  * @return  true: Transmisión exitosa, ACK recibido ... 
+//  * @return  false: Transmisión fallida, CRC invalide, data frame invalid or timeout
+//  * @todo    - Al esperar ACK solo debe ir timeOUT_invalid_frame
+//  */
+// bool sendDataFrame(void) {
+//   uint32_t last_address_written = 0xFFFFFFFF;
+//   uint32_t last_sent_address = 0xFFFFFFFF;
 
-  if ( !verifyOBCResponse(recibido) ) return false;     // REVISAR, se maneja el invalid frame también
+//   if (!get_address(&last_address_written)) return false;
+//   if (!get_SENT_DATAaddress(&last_sent_address)) return false;
 
-  if ( recibido[1] == ACK_OBC_to_MUA ) {
-    last_sent_address += TRAMA_DATA_SIZE;
-    write_SENT_DATAaddress(&last_sent_address);         // se actualiza la siguiente dirección a enviar
-  } else if (recibido[1] == ID_FINISH) {
-    currentMode = FINISH;
-  } else if (recibido[1] == ID_TRANSFER_SYSINFO_MODE) {
-    currentMode = TRANSFER_INFO_MODE;
-  }
+//   if (last_sent_address == 0xFFFFFFFF) last_sent_address = 0x00;  // primer envío de día uno (*festeja*)
+//   if (last_address_written == last_sent_address) {                // ya no quedan datos en memoria por enviar
+//     #ifdef DEBUG_MAIN
+//     Serial.println("DEBUG (sendDataFrame) → last_address_written == last_sent_address");
+//     #endif
+//     // currentMode = FINISH;
+//     return true;
+//   }
 
-  return true;
-}
+//   uint8_t trama_size = TRAMA_DATA_SIZE + TRAMA_COMM;
+//   uint8_t trama[trama_size];
+//   if ( !buildDataFrame(trama, ID_SENT_DATA, TRAMA_DATA_SIZE, last_sent_address) ) return false;
+
+//   Serial1.write(trama, trama_size);
+
+//   #ifdef DEBUG_MAIN
+//   Serial.println("DEBUG (sendDataFrame) -> Trama enviada:");
+//   for ( uint8_t i = 0; i < trama_size; i++ ) {
+//     Serial.print(" 0x"); Serial.print(trama[i], HEX);
+//   }
+//   Serial.println();
+//   #endif
+
+//   // unsigned long tiempo = millis();
+//   // while ( Serial1.available() < TRAMA_COMM ) {
+//   //   if ( (millis() - tiempo) >= timeOUT ) return false;
+//   // }
+//   uint8_t recibido[TRAMA_COMM];
+//   // Serial1.readBytes(recibido, TRAMA_COMM);
+//   if ( !slidingWindowBuffer(recibido, timeOUT_invalid_frame) ) {  // Solo debe ir timeOUT_invalid_frame
+//     // delay(timeOUT_invalid_frame);                   // Se tiene que eliminar
+//     Serial1.write(nack_IF_MUA_to_OBC, TRAMA_COMM);
+//     #ifdef DEBUG_MAIN
+//     Serial.println("ERROR (sendDataFrame) → Fallo slidingWindowBuffer");
+//     #endif
+//     return false;
+//   }
+
+
+//   #ifdef DEBUG_MAIN
+//   Serial.println("DEBUG (sendDataFrame) -> Respuesta recibida:");
+//   for ( uint8_t i = 0; i < TRAMA_COMM; i++ ) {
+//     Serial.print(" 0x"); Serial.print(recibido[i], HEX);
+//   }
+//   Serial.println();
+//   #endif
+
+//   // if ( !verifyOBCResponse(recibido) ) return false;     // REVISAR, se maneja el invalid frame también
+
+//   if ( recibido[1] == ID_SENT_DATA ) {
+//     last_sent_address += TRAMA_DATA_SIZE;
+//     write_SENT_DATAaddress(&last_sent_address);         // se actualiza la siguiente dirección a enviar
+//   } else if (recibido[1] == ID_FINISH) {
+//     currentMode = FINISH;
+//   } else if (recibido[1] == ID_TRANSFER_SYSINFO_MODE) {
+//     currentMode = TRANSFER_INFO_MODE;
+//   }
+
+//   return true;
+// }
 
 
 
@@ -718,12 +738,12 @@ void setup() {
 
   // activeInterrupt2();
 
-  // // Inicialización de memoria Flash 
-  // if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
-  //   // break;
-  //   Serial.println("DEBUG (setup) -> Flash con problemss");
-  // }
-  // delay(2000);
+  // Inicialización de memoria Flash 
+  if ( !start_flash() ) {              // Se utiliza en ambos modos de operación
+    // break;
+    Serial.println("DEBUG (setup) -> Flash con problemss");
+  }
+  delay(2000);
 
   // if (erase_all()) {
   //   Serial.print("comando de borrado enviado, status: 0b");
@@ -732,18 +752,21 @@ void setup() {
   // } else {
   //   Serial.println("error, no se completó el borrado");
   // }
-  // uint8_t escribir[5] = {0x01, 0xA3, 0xF5, 0x12, 0x14};
-  // write_mem(escribir, 5);
-  // uint16_t len = 200;
-  // uint8_t leer[len] = {};
-  // read_until(leer, len);
-  // for (uint8_t i = 0; i < len; i++) {
-  //   Serial.print(" 0x");
-  //   Serial.print(leer[i], HEX);
-  // }
-  // Serial.println();
-  // delay(1000);
-  // // read_all();
+  uint8_t escribir[36] = { 0x01, 0xA3, 0xF5, 0x12, 0x14, 0x01, 0xA3, 0xF5, 0x12, 0x14,
+                          0x01, 0xA3, 0xF5, 0x12, 0x14, 0x01, 0xA3, 0xF5, 0x12, 0x14,
+                          0x01, 0xA3, 0xF5, 0x12, 0x14, 0x01, 0xA3, 0xF5, 0x12, 0x14,
+                          0x01, 0xA3, 0xF5, 0x12, 0x14, 0x01};
+  write_mem(escribir, 36);
+  uint16_t len = 200;
+  uint8_t leer[len] = {};
+  read_until(leer, len);
+  for (uint8_t i = 0; i < len; i++) {
+    Serial.print(" 0x");
+    Serial.print(leer[i], HEX);
+  }
+  Serial.println();
+  delay(1000);
+  // read_all();
   uint8_t conteo = 0;
   while(1) {
     delay(500);
